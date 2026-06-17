@@ -18,7 +18,8 @@ _CUSTOM_RE = re.compile(r"^пользовательское поле\s*\((.*)\)\
 # ---- flexible column lookup -------------------------------------------------
 _ALIASES = {
     "key": ["issue key", "key", "issue id", "id",
-            "ключ проблемы", "ключ вопроса", "ключ задачи", "ключ", "kalit", "masala kaliti"],
+            "ключ проблемы", "ключ вопроса", "ключ задачи", "ключ", "код",
+            "kalit", "masala kaliti"],
     "type": ["issue type", "type", "issuetype",
              "тип задачи", "тип запроса", "тип", "tur", "masala turi"],
     "status": ["status", "статус", "holat"],
@@ -53,6 +54,15 @@ _ALIASES = {
     "history": ["status history", "changelog", "status changes", "history",
                 "история статусов", "журнал изменений", "holat tarixi"],
     "url": ["url", "link", "issue url", "ссылка"],
+    # ITSM (Jira Service Desk) — Russian fields are the configured ones; the
+    # English equivalents (Time to first response / Time to resolution) are NOT
+    # configured in this tenant and must be ignored.
+    "customer_request_type": ["customer request type", "тип запроса клиента"],
+    "sla_reaction_elapsed_min": ["sla время реакции (минуты)", "sla time to first response (minutes)"],
+    "sla_resolution_elapsed_min": ["sla время решения (минуты)", "sla time to resolution (minutes)"],
+    "sla_overall_text": ["sla общий", "sla overall"],
+    "sla_reaction_remaining": ["время реакции", "time to first response"],
+    "sla_resolution_remaining": ["время решения", "time to resolution"],
 }
 
 
@@ -512,6 +522,19 @@ def normalize_rows(rows: list[dict], default_project: str = "") -> list[dict]:
         is_epic = itype.strip().lower() in config.EPIC_TYPES
         project = _get(row, "project") or default_project or key.split("-")[0]
         history = _parse_history(_get(row, "history"), created, resolved, status_c)
+        # ITSM-specific fields. parse_sla_overall() returns met/breached/running
+        # per SLA from the "SLA общий" free-text column. Absent on portfolio data
+        # (PMD/PMO) — fields are None then.
+        sla = parse_sla_overall(_get(row, "sla_overall_text"))
+        crt = _get(row, "customer_request_type")
+        try:
+            sla_reaction_elapsed = float(_get(row, "sla_reaction_elapsed_min") or 0) or None
+        except ValueError:
+            sla_reaction_elapsed = None
+        try:
+            sla_resolution_elapsed = float(_get(row, "sla_resolution_elapsed_min") or 0) or None
+        except ValueError:
+            sla_resolution_elapsed = None
         issues.append({
             "key": key,
             "url": _get(row, "url"),
@@ -539,5 +562,76 @@ def normalize_rows(rows: list[dict], default_project: str = "") -> list[dict]:
             "comments": _parse_comments(row),
             "links": _get_links(row),
             "history": history,
+            # ITSM
+            "customer_request_type": crt,
+            "sla_reaction_elapsed_min": sla_reaction_elapsed,
+            "sla_resolution_elapsed_min": sla_resolution_elapsed,
+            "sla_reaction_met": sla["reaction_met"],
+            "sla_resolution_met": sla["resolution_met"],
+            "sla_reaction_state": sla["reaction_state"],
+            "sla_resolution_state": sla["resolution_state"],
         })
     return issues
+
+
+# ---- SLA parsing (ITSM) -----------------------------------------------------
+# The "SLA общий" column carries the truthy SLA pass/fail as RU text with emoji:
+#   "Время реакции: 39s (left 2h 59m 20s) ✅ runningВремя решения: 25m 33s (left 1h 34m 26s) ✅ ..."
+# We split on the two RU labels, then look for ✅ / ❌ + state keyword in each
+# segment. The English equivalents (Time to first response / Time to resolution)
+# are NOT configured for this Jira tenant and must not be parsed.
+_SLA_REACTION_LABEL = "Время реакции"
+_SLA_RESOLUTION_LABEL = "Время решения"
+
+
+def _slice_sla_segment(text: str, label: str) -> str:
+    i = text.find(label)
+    if i < 0:
+        return ""
+    # The next segment starts at the next label occurrence (or end of string).
+    rest = text[i + len(label):]
+    next_i_a = rest.find(_SLA_REACTION_LABEL)
+    next_i_b = rest.find(_SLA_RESOLUTION_LABEL)
+    cuts = [c for c in (next_i_a, next_i_b) if c >= 0]
+    end = min(cuts) if cuts else len(rest)
+    return rest[:end]
+
+
+def _interpret_sla(segment: str) -> tuple[bool | None, str]:
+    """Return (met, state) for a single SLA segment.
+
+    The truth is in the emoji: ✅ = met / on track, ❌ = breached.
+    The trailing word ("running" / "paused" / "met") is just timer state and
+    doesn't override the emoji — Jira keeps a closed ticket's SLA emoji
+    correct even though the textual state may still read "running".
+    """
+    if not segment:
+        return None, ""
+    s = segment.lower()
+    state = ""
+    if "running" in s: state = "running"
+    elif "paused" in s: state = "paused"
+    elif "met" in s: state = "met"
+    elif "breached" in s or "exceeded" in s: state = "breached"
+    if "❌" in segment or state == "breached":
+        return False, state or "breached"
+    if "✅" in segment:
+        return True, state or "met"
+    return None, state
+
+
+def parse_sla_overall(text: str) -> dict:
+    """Parse "SLA общий" into per-SLA met/state dicts.
+
+    Returns {reaction_met, resolution_met, reaction_state, resolution_state}.
+    Met is True/False (closed SLA) or None (still running / no signal).
+    """
+    if not text:
+        return {"reaction_met": None, "resolution_met": None,
+                "reaction_state": "", "resolution_state": ""}
+    rseg = _slice_sla_segment(text, _SLA_REACTION_LABEL)
+    sseg = _slice_sla_segment(text, _SLA_RESOLUTION_LABEL)
+    rm, rs = _interpret_sla(rseg)
+    sm, ss = _interpret_sla(sseg)
+    return {"reaction_met": rm, "resolution_met": sm,
+            "reaction_state": rs, "resolution_state": ss}

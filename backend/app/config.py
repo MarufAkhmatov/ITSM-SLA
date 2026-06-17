@@ -49,6 +49,10 @@ STATUS_SYNONYMS = {
     # Truncation Jira sometimes emits in its History export ("Resolv" instead of
     # "Resolved"). Keep as DONE — this is a real completion state, not a workflow step.
     "RESOLV": "DONE",
+    # ITSM (Jira Service Desk) — the Russian-only configured statuses.
+    "ОТКРЫТЫЙ": "BACKLOG", "ПЕРЕОТКРЫТ": "BACKLOG",
+    "РЕШЕННЫЕ": "DONE", "ЗАКРЫТ": "DONE",
+    "ПРИЁМКА.": "TESTING", "ПРИЕМКА.": "TESTING",
 }
 
 # WHITELIST. Only these issue types are counted in any report. Everything else
@@ -57,7 +61,12 @@ STATUS_SYNONYMS = {
 # reported in the status-audit "dead_issue_types" bucket so the user can see
 # exactly what was excluded. Per user directive: TTM, throughput, leaderboards
 # must reflect ONLY Epic / Task / New Feature work.
-ALLOWED_ISSUE_TYPES = {"Epic", "Task", "New Feature"}
+ALLOWED_ISSUE_TYPES = {
+    # ITSM core
+    "Service Request", "Change", "Problem",
+    # Legacy PMD/PMO (kept so the same backend can ingest portfolio data too)
+    "Epic", "Task", "New Feature",
+}
 
 # Dead / obsolete Jira statuses that exist in the workflow registry but are NOT
 # real process steps for this portfolio. The PMO export still contains daily

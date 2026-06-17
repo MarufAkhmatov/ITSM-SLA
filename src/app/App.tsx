@@ -285,8 +285,9 @@ export default function App() {
           </button>
 
           {/* Upload Jira export — accepts MULTIPLE files in one go.
-              FE auto-orders: issue CSV/HTML (PMD before PMO) → History XLSX last. */}
-          <input ref={fileRef} type="file" multiple accept=".csv,.xlsx,.xlsm,.html,.htm" onChange={onUpload} style={{ display: "none" }} />
+              FE auto-orders: issue CSV/HTML/XLS (PMD before PMO) → History XLSX last.
+              `.xls` covers the Jira Service Desk Issue Navigator export. */}
+          <input ref={fileRef} type="file" multiple accept=".csv,.xls,.xlsx,.xlsm,.html,.htm" onChange={onUpload} style={{ display: "none" }} />
           <button
             onClick={() => fileRef.current?.click()}
             title={online ? t("tip_upload") : t("tip_backend_offline")}
@@ -413,6 +414,23 @@ export default function App() {
             <Metric value={hm ? hm[2].value : null} total={hm ? hm[0].value : 0} tint="#3b82c4" label={t("kpi_open")} onClick={() => openDrill(t("kpi_open"), { scope: "epics", state: "open" })} />
           </div>
         </div>
+
+        {/* ============ ITSM SLA HEADLINE (only shows when SLA data is present) ============ */}
+        {(() => {
+          const sla = (data?.widgets as any)?.sla_summary;
+          if (!sla || !sla.total_itsm_issues) return null;
+          const card = { background: "var(--card)", borderRadius: 14, boxShadow: "var(--shadow)", padding: "14px 18px", display: "flex", flexDirection: "column" as const, gap: 4, minWidth: 150 };
+          const rate = (v: number | null) => v == null ? "—" : `${v}%`;
+          const tint = (v: number | null) => v == null ? "var(--muted)" : v >= 90 ? "#2d7a5f" : v >= 75 ? "#d4a84b" : "#e07a7a";
+          return (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: GAP }}>
+              <div style={card}><span style={{ fontSize: "0.7rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>ITSM tickets</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text)" }}>{sla.total_itsm_issues}</span><span style={{ fontSize: "0.7rem", color: "var(--soft)" }}>{sla.distinct_request_types} request types · {sla.distinct_assignees} assignees</span></div>
+              <div style={card}><span style={{ fontSize: "0.7rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Reaction SLA pass-rate</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.reaction.pass_rate_pct) }}>{rate(sla.reaction.pass_rate_pct)}</span><span style={{ fontSize: "0.7rem", color: "var(--soft)" }}>{sla.reaction.met} met · {sla.reaction.breached} breached · {sla.reaction.running} running</span></div>
+              <div style={card}><span style={{ fontSize: "0.7rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Resolution SLA pass-rate</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.resolution.pass_rate_pct) }}>{rate(sla.resolution.pass_rate_pct)}</span><span style={{ fontSize: "0.7rem", color: "var(--soft)" }}>{sla.resolution.met} met · {sla.resolution.breached} breached · {sla.resolution.running} running</span></div>
+              <div style={card}><span style={{ fontSize: "0.7rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Overall SLA pass-rate</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.overall_pass_rate_pct) }}>{rate(sla.overall_pass_rate_pct)}</span><span style={{ fontSize: "0.7rem", color: "var(--soft)" }}>combined reaction + resolution</span></div>
+            </div>
+          );
+        })()}
 
         {/* ============ DESKTOP LAYOUT ============ */}
         {isDesktop && (

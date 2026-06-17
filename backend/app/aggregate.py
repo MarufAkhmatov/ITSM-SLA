@@ -1,10 +1,58 @@
 """Aggregate all engines into (a) the widget payload that feeds the existing
 dashboard widgets 1:1, and (b) the full analytics payload."""
+import collections
 from .metrics import engines as E
 
 
 def _last(seq, n):
     return seq[-n:] if len(seq) >= n else seq
+
+
+def _sla_summary(issues: list[dict]) -> dict:
+    """Boolean pass-rate over issues that actually have an ITSM SLA signal.
+    `met` = True passed, False breached, None still running / no signal."""
+    react_met = react_breach = resol_met = resol_breach = 0
+    react_running = resol_running = 0
+    total_itsm = 0
+    crt_counts: collections.Counter = collections.Counter()
+    assignees_set: set[str] = set()
+    for i in issues:
+        if not i.get("customer_request_type"):
+            continue
+        total_itsm += 1
+        crt_counts[i["customer_request_type"]] += 1
+        if i.get("assignee"):
+            assignees_set.add(i["assignee"])
+        rm = i.get("sla_reaction_met")
+        if rm is True:    react_met += 1
+        elif rm is False: react_breach += 1
+        else:             react_running += 1
+        sm = i.get("sla_resolution_met")
+        if sm is True:    resol_met += 1
+        elif sm is False: resol_breach += 1
+        else:             resol_running += 1
+
+    def pct(met, breach):
+        n = met + breach
+        return round(100.0 * met / n, 1) if n else None
+
+    return {
+        "total_itsm_issues": total_itsm,
+        "distinct_request_types": len(crt_counts),
+        "distinct_assignees": len(assignees_set),
+        "reaction": {
+            "met": react_met, "breached": react_breach, "running": react_running,
+            "pass_rate_pct": pct(react_met, react_breach),
+        },
+        "resolution": {
+            "met": resol_met, "breached": resol_breach, "running": resol_running,
+            "pass_rate_pct": pct(resol_met, resol_breach),
+        },
+        "overall_pass_rate_pct": pct(react_met + resol_met, react_breach + resol_breach),
+        "top_request_types": [
+            {"name": k, "count": v} for k, v in crt_counts.most_common(10)
+        ],
+    }
 
 
 def build(issues: list[dict]) -> dict:
@@ -86,6 +134,11 @@ def build(issues: list[dict]) -> dict:
         "available": b["success_rate"] >= 50,
     } for b in board[:6]]
 
+    # ITSM SLA summary — surfaces a basic pass/breach KPI on the dashboard.
+    # Only counts issues that actually have a Customer Request Type (i.e. ITSM
+    # Service Desk tickets); portfolio data passes through with empty stats.
+    sla_summary = _sla_summary(issues)
+
     return {
         "widgets": {
             "header_metrics": header_metrics,
@@ -96,6 +149,7 @@ def build(issues: list[dict]) -> dict:
             "project_flow": project_flow,
             "top_projects": top3,
             "pm_leaderboard": pm_widget,
+            "sla_summary": sla_summary,
         },
         "kpis": kpis,
         "analytics": {

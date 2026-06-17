@@ -38,3 +38,8 @@ ai/vector_db/*
 
 # runtime upload metadata
 storage/upload_history.json
+
+# secrets / per-host runtime
+storage/.auth_secret
+storage/auth.json
+storage/status_audit.json
