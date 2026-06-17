@@ -23,6 +23,7 @@ import { PatientFlowChart } from "./components/PatientFlowChart";
 import { HealthcareProviders } from "./components/HealthcareProviders";
 import { AriaPanel } from "./components/AriaPanel";
 import { BestProjects } from "./components/BestProjects";
+import { SlaByRequestType } from "./components/SlaByRequestType";
 import { CalendarView } from "./components/CalendarView";
 import { RiskDashboard } from "./components/RiskDashboard";
 import { useI18n, LANGS } from "./i18n";
@@ -419,18 +420,30 @@ export default function App() {
         {(() => {
           const sla = (data?.widgets as any)?.sla_summary;
           if (!sla || !sla.total_itsm_issues) return null;
-          const card = { background: "var(--card)", borderRadius: 14, boxShadow: "var(--shadow)", padding: "14px 18px", display: "flex", flexDirection: "column" as const, gap: 4, minWidth: 150 };
+          const card = { background: "var(--card)", borderRadius: 14, boxShadow: "var(--shadow)", padding: "14px 18px", display: "flex", flexDirection: "column" as const, gap: 4, minWidth: 160 };
           const rate = (v: number | null) => v == null ? "—" : `${v}%`;
           const tint = (v: number | null) => v == null ? "var(--muted)" : v >= 90 ? "#2d7a5f" : v >= 75 ? "#d4a84b" : "#e07a7a";
+          const fmtMin = (m: number | null) => { if (m == null) return "—"; if (m < 60) return `${Math.round(m)}m`; const h = Math.floor(m / 60), mm = Math.round(m % 60); return mm ? `${h}h ${mm}m` : `${h}h`; };
+          const lbl = { fontSize: "0.7rem", color: "var(--muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em" };
+          const planFakt = (p: number | null, f: number | null) => (
+            <span style={{ fontSize: "0.7rem", color: "var(--soft)" }}>{t("sla_plan")} {fmtMin(p)} → {t("sla_fakt")} <b style={{ color: "var(--text)" }}>{fmtMin(f)}</b></span>
+          );
           return (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: GAP }}>
-              <div style={card}><span style={{ fontSize: "0.7rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>ITSM tickets</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text)" }}>{sla.total_itsm_issues}</span><span style={{ fontSize: "0.7rem", color: "var(--soft)" }}>{sla.distinct_request_types} request types · {sla.distinct_assignees} assignees</span></div>
-              <div style={card}><span style={{ fontSize: "0.7rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Reaction SLA pass-rate</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.reaction.pass_rate_pct) }}>{rate(sla.reaction.pass_rate_pct)}</span><span style={{ fontSize: "0.7rem", color: "var(--soft)" }}>{sla.reaction.met} met · {sla.reaction.breached} breached · {sla.reaction.running} running</span></div>
-              <div style={card}><span style={{ fontSize: "0.7rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Resolution SLA pass-rate</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.resolution.pass_rate_pct) }}>{rate(sla.resolution.pass_rate_pct)}</span><span style={{ fontSize: "0.7rem", color: "var(--soft)" }}>{sla.resolution.met} met · {sla.resolution.breached} breached · {sla.resolution.running} running</span></div>
-              <div style={card}><span style={{ fontSize: "0.7rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Overall SLA pass-rate</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.overall_pass_rate_pct) }}>{rate(sla.overall_pass_rate_pct)}</span><span style={{ fontSize: "0.7rem", color: "var(--soft)" }}>combined reaction + resolution</span></div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: GAP }}>
+              <div style={card}><span style={lbl}>{t("sla_kpi_tickets")}</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text)" }}>{sla.total_itsm_issues}</span><span style={{ fontSize: "0.7rem", color: "var(--soft)" }}>{sla.distinct_request_types} {t("up_projects")} · {sla.distinct_assignees} {t("sla_assignees")}</span></div>
+              <div style={card}><span style={lbl}>{t("sla_kpi_reaction")}</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.reaction.pass_rate_pct) }}>{rate(sla.reaction.pass_rate_pct)}</span>{planFakt(sla.reaction.plan_avg_min, sla.reaction.fakt_avg_min)}</div>
+              <div style={card}><span style={lbl}>{t("sla_kpi_resolution")}</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.resolution.pass_rate_pct) }}>{rate(sla.resolution.pass_rate_pct)}</span>{planFakt(sla.resolution.plan_avg_min, sla.resolution.fakt_avg_min)}</div>
+              <div style={card}><span style={lbl}>{t("sla_kpi_overall")}</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.overall_pass_rate_pct) }}>{rate(sla.overall_pass_rate_pct)}</span>{planFakt(sla.total.plan_avg_min, sla.total.fakt_avg_min)}</div>
             </div>
           );
         })()}
+
+        {/* ============ ITSM SLA BY REQUEST TYPE (full-width) ============ */}
+        {(data?.widgets as any)?.sla_by_request_type?.length ? (
+          <div style={{ ...card, minHeight: 420, display: "flex", flexDirection: "column" }}>
+            <SlaByRequestType />
+          </div>
+        ) : null}
 
         {/* ============ DESKTOP LAYOUT ============ */}
         {isDesktop && (

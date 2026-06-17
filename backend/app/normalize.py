@@ -522,19 +522,23 @@ def normalize_rows(rows: list[dict], default_project: str = "") -> list[dict]:
         is_epic = itype.strip().lower() in config.EPIC_TYPES
         project = _get(row, "project") or default_project or key.split("-")[0]
         history = _parse_history(_get(row, "history"), created, resolved, status_c)
-        # ITSM-specific fields. parse_sla_overall() returns met/breached/running
-        # per SLA from the "SLA общий" free-text column. Absent on portfolio data
-        # (PMD/PMO) — fields are None then.
+        # ITSM-specific fields. parse_sla_overall() derives spent (fakt), plan
+        # (= spent + remaining) and met/breached per SLA from the "SLA общий"
+        # free-text column. Absent on portfolio data (PMD/PMO) — None then.
         sla = parse_sla_overall(_get(row, "sla_overall_text"))
         crt = _get(row, "customer_request_type")
+        # Cross-check / fallback: the rounded "(минуты)" columns hold spent time.
         try:
-            sla_reaction_elapsed = float(_get(row, "sla_reaction_elapsed_min") or 0) or None
+            spent_col_react = float(_get(row, "sla_reaction_elapsed_min") or 0) or None
         except ValueError:
-            sla_reaction_elapsed = None
+            spent_col_react = None
         try:
-            sla_resolution_elapsed = float(_get(row, "sla_resolution_elapsed_min") or 0) or None
+            spent_col_resol = float(_get(row, "sla_resolution_elapsed_min") or 0) or None
         except ValueError:
-            sla_resolution_elapsed = None
+            spent_col_resol = None
+        # Prefer the precise text-derived spent; fall back to the rounded column.
+        react_spent = sla["reaction_spent_min"] if sla["reaction_spent_min"] is not None else spent_col_react
+        resol_spent = sla["resolution_spent_min"] if sla["resolution_spent_min"] is not None else spent_col_resol
         issues.append({
             "key": key,
             "url": _get(row, "url"),
@@ -562,76 +566,111 @@ def normalize_rows(rows: list[dict], default_project: str = "") -> list[dict]:
             "comments": _parse_comments(row),
             "links": _get_links(row),
             "history": history,
-            # ITSM
+            # ITSM — Plan vs Fakt (minutes), per SLA dimension
             "customer_request_type": crt,
-            "sla_reaction_elapsed_min": sla_reaction_elapsed,
-            "sla_resolution_elapsed_min": sla_resolution_elapsed,
+            "sla_reaction_spent_min": react_spent,
+            "sla_reaction_plan_min": sla["reaction_plan_min"],
             "sla_reaction_met": sla["reaction_met"],
+            "sla_resolution_spent_min": resol_spent,
+            "sla_resolution_plan_min": sla["resolution_plan_min"],
             "sla_resolution_met": sla["resolution_met"],
-            "sla_reaction_state": sla["reaction_state"],
-            "sla_resolution_state": sla["resolution_state"],
         })
     return issues
 
 
 # ---- SLA parsing (ITSM) -----------------------------------------------------
-# The "SLA общий" column carries the truthy SLA pass/fail as RU text with emoji:
+# The "SLA общий" column carries, per SLA dimension, the ELAPSED time, the
+# remaining ("left") time, and a ✅/❌ flag, e.g.:
 #   "Время реакции: 39s (left 2h 59m 20s) ✅ runningВремя решения: 25m 33s (left 1h 34m 26s) ✅ ..."
-# We split on the two RU labels, then look for ✅ / ❌ + state keyword in each
-# segment. The English equivalents (Time to first response / Time to resolution)
-# are NOT configured for this Jira tenant and must not be parsed.
+# Semantics confirmed with the data owner:
+#   • elapsed         = FAKT  — time actually spent
+#   • left (signed)   = REMAINING from the configured SLA goal (negative if breached)
+#   • PLAN            = elapsed + left  (the configured SLA target)
+#   • ✅ = met / on-track, ❌ = breached  (emoji is the source of truth)
+# The English fields (Time to first response / Time to resolution) are NOT
+# configured for this tenant and must be ignored.
 _SLA_REACTION_LABEL = "Время реакции"
 _SLA_RESOLUTION_LABEL = "Время решения"
+_DUR_RE = re.compile(r"(-?\d+)\s*([hmsчмс])", re.IGNORECASE)
+
+
+def _parse_duration_seconds(s: str):
+    """Parse an English/Russian compact duration ("4h 35m 52s", "-1ч 34м",
+    "25m 33s", "39s", "-42 мин.") into signed seconds. Returns None for empty
+    or the em-dash placeholder."""
+    if not s:
+        return None
+    s = s.strip()
+    if not s or s in ("—", "-", "–"):
+        return None
+    neg = s.lstrip().startswith("-")
+    unit_sec = {"h": 3600, "ч": 3600, "m": 60, "м": 60, "мин": 60, "s": 1, "с": 1}
+    total = 0
+    found = False
+    for val, unit in _DUR_RE.findall(s):
+        found = True
+        total += abs(int(val)) * unit_sec.get(unit.lower(), 0)
+    if not found:
+        return None
+    return -total if neg else total
+
+
+def _parse_sla_segment(segment: str) -> dict:
+    """Parse one SLA segment → {spent_sec, plan_sec, met}.
+
+    met: True (✅) / False (❌) / None (no flag / no SLA on this dimension).
+    """
+    out = {"spent_sec": None, "plan_sec": None, "met": None}
+    if not segment or segment.strip() in ("", "—"):
+        return out
+    # elapsed = everything before "(left"; remaining = inside "(left ... )"
+    left_m = re.search(r"\(\s*left\s*([^)]*)\)", segment, re.IGNORECASE)
+    remaining = _parse_duration_seconds(left_m.group(1)) if left_m else None
+    elapsed_part = segment.split("(left")[0] if "(left" in segment else segment
+    elapsed = _parse_duration_seconds(elapsed_part)
+    out["spent_sec"] = elapsed
+    if elapsed is not None and remaining is not None:
+        out["plan_sec"] = elapsed + remaining
+    if "❌" in segment:
+        out["met"] = False
+    elif "✅" in segment:
+        out["met"] = True
+    return out
 
 
 def _slice_sla_segment(text: str, label: str) -> str:
     i = text.find(label)
     if i < 0:
         return ""
-    # The next segment starts at the next label occurrence (or end of string).
     rest = text[i + len(label):]
-    next_i_a = rest.find(_SLA_REACTION_LABEL)
-    next_i_b = rest.find(_SLA_RESOLUTION_LABEL)
-    cuts = [c for c in (next_i_a, next_i_b) if c >= 0]
+    cuts = [c for c in (rest.find(_SLA_REACTION_LABEL), rest.find(_SLA_RESOLUTION_LABEL)) if c >= 0]
     end = min(cuts) if cuts else len(rest)
     return rest[:end]
 
 
-def _interpret_sla(segment: str) -> tuple[bool | None, str]:
-    """Return (met, state) for a single SLA segment.
-
-    The truth is in the emoji: ✅ = met / on track, ❌ = breached.
-    The trailing word ("running" / "paused" / "met") is just timer state and
-    doesn't override the emoji — Jira keeps a closed ticket's SLA emoji
-    correct even though the textual state may still read "running".
-    """
-    if not segment:
-        return None, ""
-    s = segment.lower()
-    state = ""
-    if "running" in s: state = "running"
-    elif "paused" in s: state = "paused"
-    elif "met" in s: state = "met"
-    elif "breached" in s or "exceeded" in s: state = "breached"
-    if "❌" in segment or state == "breached":
-        return False, state or "breached"
-    if "✅" in segment:
-        return True, state or "met"
-    return None, state
+def _sec_to_min(v):
+    return round(v / 60.0, 2) if v is not None else None
 
 
 def parse_sla_overall(text: str) -> dict:
-    """Parse "SLA общий" into per-SLA met/state dicts.
+    """Parse "SLA общий" into spent/plan/met for both SLA dimensions.
 
-    Returns {reaction_met, resolution_met, reaction_state, resolution_state}.
-    Met is True/False (closed SLA) or None (still running / no signal).
+    Returns minutes (float) for spent & plan, plus the met flag, for reaction
+    and resolution. All None when the dimension has no SLA ("—") or no data.
     """
+    blank = {
+        "reaction_spent_min": None, "reaction_plan_min": None, "reaction_met": None,
+        "resolution_spent_min": None, "resolution_plan_min": None, "resolution_met": None,
+    }
     if not text:
-        return {"reaction_met": None, "resolution_met": None,
-                "reaction_state": "", "resolution_state": ""}
-    rseg = _slice_sla_segment(text, _SLA_REACTION_LABEL)
-    sseg = _slice_sla_segment(text, _SLA_RESOLUTION_LABEL)
-    rm, rs = _interpret_sla(rseg)
-    sm, ss = _interpret_sla(sseg)
-    return {"reaction_met": rm, "resolution_met": sm,
-            "reaction_state": rs, "resolution_state": ss}
+        return blank
+    r = _parse_sla_segment(_slice_sla_segment(text, _SLA_REACTION_LABEL))
+    s = _parse_sla_segment(_slice_sla_segment(text, _SLA_RESOLUTION_LABEL))
+    return {
+        "reaction_spent_min": _sec_to_min(r["spent_sec"]),
+        "reaction_plan_min": _sec_to_min(r["plan_sec"]),
+        "reaction_met": r["met"],
+        "resolution_spent_min": _sec_to_min(s["spent_sec"]),
+        "resolution_plan_min": _sec_to_min(s["plan_sec"]),
+        "resolution_met": s["met"],
+    }

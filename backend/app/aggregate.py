@@ -8,12 +8,23 @@ def _last(seq, n):
     return seq[-n:] if len(seq) >= n else seq
 
 
+def _pct(met, breach):
+    n = met + breach
+    return round(100.0 * met / n, 1) if n else None
+
+
+def _avg(total, n):
+    return round(total / n, 1) if n else None
+
+
 def _sla_summary(issues: list[dict]) -> dict:
-    """Boolean pass-rate over issues that actually have an ITSM SLA signal.
-    `met` = True passed, False breached, None still running / no signal."""
+    """Headline SLA: pass-rate + Plan vs Fakt (minutes) over ITSM tickets."""
     react_met = react_breach = resol_met = resol_breach = 0
     react_running = resol_running = 0
     total_itsm = 0
+    # Plan/Fakt accumulators
+    rp = rf = sp = sf = 0.0   # reaction plan/fakt, resolution plan/fakt (sum minutes)
+    rp_n = rf_n = sp_n = sf_n = 0
     crt_counts: collections.Counter = collections.Counter()
     assignees_set: set[str] = set()
     for i in issues:
@@ -31,10 +42,10 @@ def _sla_summary(issues: list[dict]) -> dict:
         if sm is True:    resol_met += 1
         elif sm is False: resol_breach += 1
         else:             resol_running += 1
-
-    def pct(met, breach):
-        n = met + breach
-        return round(100.0 * met / n, 1) if n else None
+        if i.get("sla_reaction_plan_min") is not None:  rp += i["sla_reaction_plan_min"]; rp_n += 1
+        if i.get("sla_reaction_spent_min") is not None: rf += i["sla_reaction_spent_min"]; rf_n += 1
+        if i.get("sla_resolution_plan_min") is not None:  sp += i["sla_resolution_plan_min"]; sp_n += 1
+        if i.get("sla_resolution_spent_min") is not None: sf += i["sla_resolution_spent_min"]; sf_n += 1
 
     return {
         "total_itsm_issues": total_itsm,
@@ -42,17 +53,90 @@ def _sla_summary(issues: list[dict]) -> dict:
         "distinct_assignees": len(assignees_set),
         "reaction": {
             "met": react_met, "breached": react_breach, "running": react_running,
-            "pass_rate_pct": pct(react_met, react_breach),
+            "pass_rate_pct": _pct(react_met, react_breach),
+            "plan_avg_min": _avg(rp, rp_n), "fakt_avg_min": _avg(rf, rf_n),
+            "plan_sum_min": round(rp, 1), "fakt_sum_min": round(rf, 1),
         },
         "resolution": {
             "met": resol_met, "breached": resol_breach, "running": resol_running,
-            "pass_rate_pct": pct(resol_met, resol_breach),
+            "pass_rate_pct": _pct(resol_met, resol_breach),
+            "plan_avg_min": _avg(sp, sp_n), "fakt_avg_min": _avg(sf, sf_n),
+            "plan_sum_min": round(sp, 1), "fakt_sum_min": round(sf, 1),
         },
-        "overall_pass_rate_pct": pct(react_met + resol_met, react_breach + resol_breach),
+        "total": {
+            # total = reaction + resolution
+            "plan_avg_min": _avg(rp + sp, max(rp_n, sp_n)) if (rp_n or sp_n) else None,
+            "fakt_avg_min": _avg(rf + sf, max(rf_n, sf_n)) if (rf_n or sf_n) else None,
+            "plan_sum_min": round(rp + sp, 1),
+            "fakt_sum_min": round(rf + sf, 1),
+        },
+        "overall_pass_rate_pct": _pct(react_met + resol_met, react_breach + resol_breach),
         "top_request_types": [
             {"name": k, "count": v} for k, v in crt_counts.most_common(10)
         ],
     }
+
+
+def _sla_by_request_type(issues: list[dict]) -> list[dict]:
+    """Per Customer Request Type: count, status split, Plan vs Fakt (avg minutes)
+    for reaction / resolution / total, and SLA pass-rates."""
+    buckets: dict[str, dict] = {}
+    for i in issues:
+        crt = i.get("customer_request_type")
+        if not crt:
+            continue
+        b = buckets.setdefault(crt, {
+            "name": crt, "count": 0,
+            "done": 0, "in_progress": 0, "todo": 0,
+            "rp": 0.0, "rp_n": 0, "rf": 0.0, "rf_n": 0,
+            "sp": 0.0, "sp_n": 0, "sf": 0.0, "sf_n": 0,
+            "react_met": 0, "react_breach": 0, "resol_met": 0, "resol_breach": 0,
+            "assignees": set(),
+        })
+        b["count"] += 1
+        if i.get("assignee"):
+            b["assignees"].add(i["assignee"])
+        # status split (ITSM groups)
+        sg = i.get("status_group")
+        st = i.get("status")
+        if st in ("DONE",) or sg == "done":
+            b["done"] += 1
+        elif st in ("IN PROGRESS", "TESTING", "ANALYSIS", "NEED INFO") or sg in ("delivery",):
+            b["in_progress"] += 1
+        else:
+            b["todo"] += 1
+        if i.get("sla_reaction_plan_min") is not None:  b["rp"] += i["sla_reaction_plan_min"]; b["rp_n"] += 1
+        if i.get("sla_reaction_spent_min") is not None: b["rf"] += i["sla_reaction_spent_min"]; b["rf_n"] += 1
+        if i.get("sla_resolution_plan_min") is not None:  b["sp"] += i["sla_resolution_plan_min"]; b["sp_n"] += 1
+        if i.get("sla_resolution_spent_min") is not None: b["sf"] += i["sla_resolution_spent_min"]; b["sf_n"] += 1
+        rm = i.get("sla_reaction_met")
+        if rm is True: b["react_met"] += 1
+        elif rm is False: b["react_breach"] += 1
+        sm = i.get("sla_resolution_met")
+        if sm is True: b["resol_met"] += 1
+        elif sm is False: b["resol_breach"] += 1
+
+    out = []
+    for b in buckets.values():
+        plan_react, fakt_react = _avg(b["rp"], b["rp_n"]), _avg(b["rf"], b["rf_n"])
+        plan_resol, fakt_resol = _avg(b["sp"], b["sp_n"]), _avg(b["sf"], b["sf_n"])
+        out.append({
+            "name": b["name"], "count": b["count"],
+            "assignees": len(b["assignees"]),
+            "done": b["done"], "in_progress": b["in_progress"], "todo": b["todo"],
+            "plan": {
+                "reaction_min": plan_react, "resolution_min": plan_resol,
+                "total_min": round((plan_react or 0) + (plan_resol or 0), 1),
+            },
+            "fakt": {
+                "reaction_min": fakt_react, "resolution_min": fakt_resol,
+                "total_min": round((fakt_react or 0) + (fakt_resol or 0), 1),
+            },
+            "reaction_pass_rate_pct": _pct(b["react_met"], b["react_breach"]),
+            "resolution_pass_rate_pct": _pct(b["resol_met"], b["resol_breach"]),
+        })
+    out.sort(key=lambda x: -x["count"])
+    return out
 
 
 def build(issues: list[dict]) -> dict:
@@ -134,10 +218,10 @@ def build(issues: list[dict]) -> dict:
         "available": b["success_rate"] >= 50,
     } for b in board[:6]]
 
-    # ITSM SLA summary — surfaces a basic pass/breach KPI on the dashboard.
-    # Only counts issues that actually have a Customer Request Type (i.e. ITSM
-    # Service Desk tickets); portfolio data passes through with empty stats.
+    # ITSM SLA — Plan vs Fakt. Only over issues that have a Customer Request
+    # Type (ITSM Service Desk tickets); portfolio data passes through empty.
     sla_summary = _sla_summary(issues)
+    sla_by_request_type = _sla_by_request_type(issues)
 
     return {
         "widgets": {
@@ -150,6 +234,7 @@ def build(issues: list[dict]) -> dict:
             "top_projects": top3,
             "pm_leaderboard": pm_widget,
             "sla_summary": sla_summary,
+            "sla_by_request_type": sla_by_request_type,
         },
         "kpis": kpis,
         "analytics": {
