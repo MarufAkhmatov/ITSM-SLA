@@ -1,0 +1,45 @@
+# Portfolio Intelligence Platform configuration
+platform:
+  name: Portfolio Intelligence Platform
+  deployment: local            # local-only, no external egress
+
+jira:
+  projects: [PMD, PMO]
+  portfolio_project_type: Epic
+  work_item_types: [Task, "New Feature"]
+
+statuses:
+  discovery: [VALIDATION, BACKLOG, ANALYSIS, ARCHITECTURE REVIEW, INITIATION]
+  delivery:  [IN PROGRESS, TESTING, PILOT IO, DONE]
+  declined:  [DECLINED, REJECTED, CANCELLED]
+
+ingestion:
+  formats: [csv, xlsx, html]
+  active_strategy: latest_upload
+  archive_previous: true
+
+ai:
+  name: ARIA
+  provider: ollama            # ollama | llama | qwen | deepseek
+  model: llama3.1
+  ollama_url: http://localhost:11434
+  vector_db: chromadb         # chromadb | qdrant
+  rag_sources:
+    - latest_jira_dataset
+    - archived_jira_datasets
+    - internal_documents
+    - methodologies
+    - lex_uz
+    - cbu_uz
+    - pmo_procedures
+    - project_office_standards
+
+security:
+  rbac_roles: [Admin, PMO, PM, Executive, Viewer]
+  audit_logging: true
+
+performance_targets:
+  dashboard_load_seconds: 2
+  ai_response_seconds: 5
+  upload_processing_seconds: 30
+  scale_issues: 100000

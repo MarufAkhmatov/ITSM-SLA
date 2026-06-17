@@ -1,0 +1,13 @@
+# Python stdlib Portfolio Intelligence API (no FastAPI/pydantic — stdlib only).
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# openpyxl is the only optional dep (XLSX ingestion); everything else is stdlib.
+RUN pip install --no-cache-dir openpyxl
+
+COPY backend ./backend
+
+# storage/ is a mounted volume so uploaded datasets persist across restarts.
+EXPOSE 8077
+CMD ["python", "backend/server.py"]

@@ -1,0 +1,62 @@
+version: "3.9"
+
+# Portfolio Intelligence Platform — local enterprise deployment.
+# Local only. No external network egress required (Ollama + Chroma are local).
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: portfolio
+      POSTGRES_USER: portfolio
+      POSTGRES_PASSWORD: portfolio
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      - "5432:5432"
+
+  chromadb:
+    image: chromadb/chroma:latest
+    volumes:
+      - ./ai/vector_db:/chroma/chroma
+    ports:
+      - "8001:8000"
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ./ai/models:/root/.ollama
+    ports:
+      - "11434:11434"
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://portfolio:portfolio@postgres:5432/portfolio
+      OLLAMA_URL: http://ollama:11434
+      CHROMA_URL: http://chromadb:8000
+      ARIA_PROVIDER: ollama
+      ARIA_MODEL: llama3.1
+    volumes:
+      - ./storage:/app/storage
+      - ./knowledge_base:/app/knowledge_base
+      - ./logs:/app/logs
+    ports:
+      - "8077:8077"
+    depends_on:
+      - postgres
+      - ollama
+      - chromadb
+
+  frontend:
+    build: .
+    environment:
+      VITE_API_URL: http://localhost:8077
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

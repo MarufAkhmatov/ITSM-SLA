@@ -1,0 +1,35 @@
+# ProjectNest — SIMPLE, working containerization of the live app
+# (stdlib Python backend + built Vite frontend served by nginx).
+# This mirrors what actually runs today; the heavier docker-compose.yml
+# (postgres/ollama/chroma) is the aspirational reference.
+#
+#   docker compose -f docker-compose.app.yml up -d --build
+#   docker compose -f docker-compose.app.yml logs -f
+#   docker compose -f docker-compose.app.yml down
+#
+# Open  http://localhost:8080  (or http://<LAN-IP>:8080, or tunnel :8080).
+# Uploaded datasets persist in the "pn_storage" volume.
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    volumes:
+      # Bind-mount the SAME host storage folder the local (non-Docker) backend
+      # uses → both stay in sync (load_current reads the file fresh each request).
+      - ./storage:/app/storage
+    environment:
+      # Give Temur a fast cloud LLM in the container (host Claude CLI is absent here).
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-3-5-haiku-latest}
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

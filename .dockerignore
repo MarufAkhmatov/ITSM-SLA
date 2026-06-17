@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.vscode
+storage
+logs
+ai/models
+ai/vector_db
+cloudflared.exe
+*.log
+**/__pycache__
+backend/storage
+npm-debug.log*
+.DS_Store

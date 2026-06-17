@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+build/
+
+# logs
+*.log
+npm-debug.log*
+
+# editor / os
+.DS_Store
+.vscode/
+.idea/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# platform runtime data (folders tracked via .gitkeep, contents ignored)
+storage/uploads/*
+storage/current/*
+storage/archive/*
+storage/temp/*
+storage/exports/*
+logs/*
+ai/models/*
+ai/vector_db/*
+!**/.gitkeep
+
+# runtime upload metadata
+storage/upload_history.json
