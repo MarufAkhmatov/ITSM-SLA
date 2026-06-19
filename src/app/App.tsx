@@ -101,7 +101,7 @@ export default function App() {
   const temurMin = useTemurMinimized();   // collapse the floating Temur dock out of the way (auto-resets when the last popup closes)
   const [view, setView] = useState<"dashboard" | "usage" | "dynamics">("dashboard");   // top-nav page switch
   const [menuOpen, setMenuOpen] = useState(false);   // mobile/tablet hamburger menu
-  const { data, upload, uploadBatch, online, epicQuality } = usePortfolio();
+  const { data, upload, uploadBatch, online, epicQuality, project, projects, setProject } = usePortfolio();
   const [eqOpen, setEqOpen] = useState(false);
   const [eqCount, setEqCount] = useState(0);     // flagged new-epic count (badge)
   const { mode, toggle } = useTheme();
@@ -206,7 +206,7 @@ export default function App() {
           <div style={{ width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden", ...glassCircle }}>
             <img src="/ipak-logo.svg" alt="IPAK" style={{ width: 26, height: 26, objectFit: "contain" }} />
           </div>
-          {!isMobile && <span style={{ fontSize: "1.1rem", fontWeight: 300, color: "#ffffff" }}>ProjectNest</span>}
+          {!isMobile && <span style={{ fontSize: "1.1rem", fontWeight: 600, color: "#ffffff", letterSpacing: "0.5px" }}>SLANEST</span>}
         </div>
 
         <div style={{ flex: 1 }} />
@@ -356,15 +356,38 @@ export default function App() {
 
       {/* ===================== CONTENT ===================== */}
       <main
+        className="pn-scroll"
         style={{
           flex: 1,
-          padding: isMobile ? `4px 16px ${ariaOpen ? 16 : 96}px` : `4px ${isTablet ? 20 : 32}px 20px`,
+          padding: isMobile ? `4px 16px ${ariaOpen ? 16 : 96}px` : `4px ${isTablet ? 20 : 32}px 24px`,
           display: "flex",
           flexDirection: "column",
           gap: GAP,
           minHeight: 0,
+          overflowY: "auto",   // pages taller than the viewport (IT services / Dynamics) scroll here
         }}
       >
+        {/* ===== Service-desk project filter — shared across all pages ===== */}
+        {projects.length > 1 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.06em", marginRight: 2 }}>{t("filter_service_desk")}</span>
+            {[{ key: "all", count: projects.reduce((s, p) => s + p.count, 0) }, ...projects].map(p => {
+              const active = project === p.key;
+              return (
+                <button key={p.key} onClick={() => setProject(p.key)}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, cursor: "pointer", border: "none",
+                    fontSize: "0.8rem", fontWeight: active ? 700 : 500,
+                    background: active ? "#fff" : "rgba(255,255,255,0.14)",
+                    color: active ? "#0c5563" : "#fff",
+                    backdropFilter: "blur(8px)", boxShadow: active ? "0 4px 14px rgba(0,0,0,0.18)" : "none" }}>
+                  {p.key === "all" ? t("filter_all") : p.key}
+                  <span style={{ fontSize: "0.66rem", opacity: 0.7, fontWeight: 600 }}>{p.count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {view === "usage" ? (
           <RequestTypeUsage />
         ) : view === "dynamics" ? (

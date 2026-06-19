@@ -155,6 +155,7 @@ def _ingest_path(path: Path, filename: str, mode: str = "replace"):
         },
     }
     storage.set_current({"issues": issues, "payload": payload}, meta)
+    _clear_proj_cache()
     return meta, payload
 
 
@@ -172,11 +173,21 @@ def _ingest_history(path: Path, filename: str):
         raise ValueError("Upload the PMD/PMO issue export (CSV/HTML) first, then add the History file.")
     issues = cur["issues"]
     enriched = 0
+    DONE = {"DONE"}
     for i in issues:
         tl = timelines.get(i["key"])
         if tl:
             i["history"] = tl
             enriched += 1
+            # Derive created / resolved dates from the timeline so the date-based
+            # ITSM reports (resource calendar, request-type dynamics) light up.
+            # The .xls issue export carries no dates; the History export does.
+            if not i.get("created") and tl[0].get("entered"):
+                i["created"] = tl[0]["entered"]
+            if not i.get("resolved"):
+                done_seg = next((s for s in reversed(tl) if s.get("status") in DONE), None)
+                if done_seg and done_seg.get("entered"):
+                    i["resolved"] = done_seg["entered"]
     payload = aggregate.build(issues)
     audit = normalize.get_status_audit()
     normalize.stop_status_audit()
@@ -230,6 +241,7 @@ def _ingest_history(path: Path, filename: str):
                 "dead_issue_types_distinct": len(audit.get("dead_issue_types", [])),
             }}
     storage.set_current({"issues": issues, "payload": payload}, meta)
+    _clear_proj_cache()
     return meta, payload, enriched
 
 
@@ -244,6 +256,48 @@ def _seed_if_empty():
 def _payload():
     data = storage.load_current()
     return data.get("payload") if data else None
+
+
+# Per-service-desk payload cache. Service desk = Jira project key (e.g. ITSM, AP).
+# Keyed by (project, dataset_size); cleared whenever a new dataset is activated.
+_proj_cache: dict = {}
+
+
+def _clear_proj_cache():
+    _proj_cache.clear()
+
+
+def _projects_list():
+    """Distinct service-desk project keys with ticket counts, plus an 'all' row."""
+    data = storage.load_current()
+    if not data or not data.get("issues"):
+        return {"has_data": False, "projects": []}
+    issues = data["issues"]
+    counts: dict[str, int] = {}
+    for i in issues:
+        counts[i.get("project") or "?"] = counts.get(i.get("project") or "?", 0) + 1
+    projects = [{"key": k, "count": v} for k, v in sorted(counts.items(), key=lambda x: -x[1])]
+    return {"has_data": True, "total": len(issues), "projects": projects}
+
+
+def _payload_for(project: str | None):
+    """Build (and cache) the widget payload filtered to one service-desk project.
+    project None / 'all' / '' → the full dataset's pre-built payload."""
+    data = storage.load_current()
+    if not data or not data.get("issues"):
+        return None
+    issues = data["issues"]
+    if not project or project.lower() == "all":
+        return data.get("payload") or aggregate.build(issues)
+    key = (project, len(issues))
+    if key in _proj_cache:
+        return _proj_cache[key]
+    subset = [i for i in issues if (i.get("project") or "") == project]
+    if not subset:
+        return None
+    payload = aggregate.build(subset)
+    _proj_cache[key] = payload
+    return payload
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -321,14 +375,19 @@ class Handler(BaseHTTPRequestHandler):
         # non-API GET → serve the built SPA (static + index fallback)
         if not route.startswith("/api/"):
             return self._serve_static(route)
+        if route == "/api/projects":
+            return self._send(_projects_list())
         if route == "/api/dashboard":
-            p = _payload()
+            proj = parse_qs(urlparse(self.path).query).get("project", [None])[0]
+            p = _payload_for(proj)
             if not p:
                 return self._send({"has_data": False})
             return self._send({"has_data": True, "meta": storage.load_current_meta(),
+                               "project": proj or "all", "projects": _projects_list().get("projects", []),
                                "widgets": p["widgets"], "kpis": p["kpis"]})
         if route == "/api/analytics":
-            p = _payload()
+            proj = parse_qs(urlparse(self.path).query).get("project", [None])[0]
+            p = _payload_for(proj)
             if not p:
                 return self._send({"has_data": False})
             return self._send({"has_data": True, **p["analytics"]})

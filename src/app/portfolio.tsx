@@ -11,6 +11,9 @@ interface PortfolioState {
   loading: boolean;
   online: boolean;
   meta: any | null;
+  project: string;
+  projects: { key: string; count: number }[];
+  setProject: (p: string) => void;
   refresh: () => void;
   upload: (file: File, mode?: "replace" | "merge") => Promise<any>;
   uploadBatch: (files: File[], mode?: "replace" | "merge", onProgress?: (done: number, total: number, current: string, lastResult?: any) => void) => Promise<{ results: any[]; summary: any }>;
@@ -34,6 +37,7 @@ interface PortfolioState {
 
 const Ctx = createContext<PortfolioState>({
   data: null, loading: true, online: false, meta: null,
+  project: "all", projects: [], setProject: () => {},
   refresh: () => {}, upload: async () => ({}), uploadBatch: async () => ({ results: [], summary: {} }), ask: async () => ({}),
   pmBoard: async () => ({ rows: [] }), notifications: async () => ({ epics: [], tasks: [] }),
   dataQuality: async () => ({ fields: [] }), statusAudit: async () => ({ has_data: false }), drill: async () => ({ issues: [] }),
@@ -54,14 +58,17 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(false);
   const [meta, setMeta] = useState<any | null>(null);
+  const [project, setProjectState] = useState<string>("all");   // active service-desk filter
+  const [projects, setProjects] = useState<{ key: string; count: number }[]>([]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (proj?: string) => {
     setLoading(true);
+    const p = proj ?? project;
     try {
-      const r = await fetch(`${API}/api/dashboard`);
+      const r = await fetch(`${API}/api/dashboard?project=${encodeURIComponent(p)}`);
       const j = await r.json();
       setOnline(true);
-      if (j.has_data) { setData(j); setMeta(j.meta); }
+      if (j.has_data) { setData(j); setMeta(j.meta); if (j.projects) setProjects(j.projects); }
       else { setData(null); setMeta(null); }
     } catch {
       setOnline(false);
@@ -69,9 +76,14 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [project]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  const setProject = useCallback((p: string) => {
+    setProjectState(p);
+    refresh(p);
+  }, [refresh]);
+
+  useEffect(() => { refresh("all"); /* eslint-disable-next-line */ }, []);
 
   const upload = useCallback(async (file: File, mode: "replace" | "merge" = "replace") => {
     const r = await fetch(`${API}/api/upload?filename=${encodeURIComponent(file.name)}&mode=${mode}`, {
@@ -290,7 +302,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ data, loading, online, meta, refresh, upload, uploadBatch, ask, pmBoard, notifications, dataQuality, statusAudit, drill, issueDetail, issueSummary, issueRecommend, ttm, analyze, calendar, risk, flow, epicQuality, epicQualityRecommend }}>
+    <Ctx.Provider value={{ data, loading, online, meta, project, projects, setProject, refresh, upload, uploadBatch, ask, pmBoard, notifications, dataQuality, statusAudit, drill, issueDetail, issueSummary, issueRecommend, ttm, analyze, calendar, risk, flow, epicQuality, epicQualityRecommend }}>
       {children}
     </Ctx.Provider>
   );
