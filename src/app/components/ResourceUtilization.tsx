@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Search, Users, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Search, Users, CalendarDays, Maximize2 } from "lucide-react";
 import { usePortfolio } from "../portfolio";
 import { useI18n } from "../i18n";
 import { usePopupOpenSignal, useTemurBesidePad } from "../popup";
@@ -16,7 +16,7 @@ type PerType = { name: string; total: number; assignee_count: number; assignees:
 
 const rateColor = (v: number | null) => (v == null ? "var(--muted)" : v >= 90 ? "#2d7a5f" : v >= 75 ? "#d4a84b" : "#e07a7a");
 
-export function ResourceUtilization() {
+export function ResourceUtilization({ onMaximize }: { onMaximize?: () => void } = {}) {
   const { data } = usePortfolio();
   const { t } = useI18n();
   const ru = (data?.widgets as any)?.resource_utilization;
@@ -53,6 +53,12 @@ export function ResourceUtilization() {
             <input value={q} onChange={e => setQ(e.target.value)} placeholder={t("res_search")}
               style={{ border: "none", background: "transparent", outline: "none", fontSize: "0.74rem", color: "var(--text)", width: 130 }} />
           </div>
+          {onMaximize && (
+            <button onClick={onMaximize} title={t("panel_maximize")}
+              style={{ width: 30, height: 30, borderRadius: 8, background: "var(--surface2)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Maximize2 size={14} color="#6b7a8d" />
+            </button>
+          )}
         </div>
       </div>
 

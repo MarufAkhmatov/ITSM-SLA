@@ -108,6 +108,9 @@ const en = {
   up_merged: "Merged", up_loaded: "Loaded", up_issues: "issues", up_projects: "projects", up_epics: "epics",
   up_files_loaded: "files loaded", up_failed: "failed",
   // ITSM SLA
+  panel_maximize: "Maximize", panel_minimize: "Minimize",
+  sla_fakt_avg: "Avg", sla_fakt_max: "Max",
+  sla_fakt_avg_hint: "Average actual time spent per ticket", sla_fakt_max_hint: "Maximum (worst-case) actual time spent",
   sla_plan: "Plan", sla_fakt: "Actual", sla_react: "Reaction", sla_resol: "Resolution", sla_total_word: "Total",
   sla_assignees: "assignees", sla_done: "done", sla_wip: "in progress", sla_todo: "to do",
   sla_crt_title: "SLA by request type — Plan vs Actual",
@@ -324,6 +327,9 @@ const ru: Dict = {
   up_merged: "Объединено", up_loaded: "Загружено", up_issues: "задач", up_projects: "проектов", up_epics: "эпиков",
   up_files_loaded: "файлов загружено", up_failed: "ошибок",
   // ITSM SLA
+  panel_maximize: "Развернуть", panel_minimize: "Свернуть",
+  sla_fakt_avg: "Средн.", sla_fakt_max: "Макс.",
+  sla_fakt_avg_hint: "Среднее фактически затраченное время на заявку", sla_fakt_max_hint: "Максимальное (худшее) фактически затраченное время",
   sla_plan: "План", sla_fakt: "Факт", sla_react: "Реакция", sla_resol: "Решение", sla_total_word: "Итого",
   sla_assignees: "исполнителей", sla_done: "закрыто", sla_wip: "в работе", sla_todo: "открыто",
   sla_crt_title: "SLA по типам запросов — План и Факт",
@@ -538,6 +544,9 @@ const uz: Dict = {
   up_merged: "Birlashtirildi", up_loaded: "Yuklandi", up_issues: "masala", up_projects: "loyiha", up_epics: "epik",
   up_files_loaded: "fayl yuklandi", up_failed: "xato",
   // ITSM SLA
+  panel_maximize: "Kattalashtirish", panel_minimize: "Kichiklashtirish",
+  sla_fakt_avg: "O'rtacha", sla_fakt_max: "Maks.",
+  sla_fakt_avg_hint: "Har zayavkaga sarflangan o'rtacha vaqt", sla_fakt_max_hint: "Maksimal (eng yomon) sarflangan vaqt",
   sla_plan: "Reja", sla_fakt: "Fakt", sla_react: "Reaksiya", sla_resol: "Yechim", sla_total_word: "Jami",
   sla_assignees: "ijrochi", sla_done: "yopilgan", sla_wip: "jarayonda", sla_todo: "ochiq",
   sla_crt_title: "So'rov turi bo'yicha SLA — Reja va Fakt",

@@ -91,6 +91,7 @@ def _sla_by_request_type(issues: list[dict]) -> list[dict]:
             "done": 0, "in_progress": 0, "todo": 0,
             "rp": 0.0, "rp_n": 0, "rf": 0.0, "rf_n": 0,
             "sp": 0.0, "sp_n": 0, "sf": 0.0, "sf_n": 0,
+            "rf_max": 0.0, "sf_max": 0.0,   # maximum spent (Fakt) seen
             "react_met": 0, "react_breach": 0, "resol_met": 0, "resol_breach": 0,
             "assignees": set(),
         })
@@ -107,9 +108,13 @@ def _sla_by_request_type(issues: list[dict]) -> list[dict]:
         else:
             b["todo"] += 1
         if i.get("sla_reaction_plan_min") is not None:  b["rp"] += i["sla_reaction_plan_min"]; b["rp_n"] += 1
-        if i.get("sla_reaction_spent_min") is not None: b["rf"] += i["sla_reaction_spent_min"]; b["rf_n"] += 1
+        if i.get("sla_reaction_spent_min") is not None:
+            b["rf"] += i["sla_reaction_spent_min"]; b["rf_n"] += 1
+            b["rf_max"] = max(b["rf_max"], i["sla_reaction_spent_min"])
         if i.get("sla_resolution_plan_min") is not None:  b["sp"] += i["sla_resolution_plan_min"]; b["sp_n"] += 1
-        if i.get("sla_resolution_spent_min") is not None: b["sf"] += i["sla_resolution_spent_min"]; b["sf_n"] += 1
+        if i.get("sla_resolution_spent_min") is not None:
+            b["sf"] += i["sla_resolution_spent_min"]; b["sf_n"] += 1
+            b["sf_max"] = max(b["sf_max"], i["sla_resolution_spent_min"])
         rm = i.get("sla_reaction_met")
         if rm is True: b["react_met"] += 1
         elif rm is False: b["react_breach"] += 1
@@ -121,6 +126,8 @@ def _sla_by_request_type(issues: list[dict]) -> list[dict]:
     for b in buckets.values():
         plan_react, fakt_react = _avg(b["rp"], b["rp_n"]), _avg(b["rf"], b["rf_n"])
         plan_resol, fakt_resol = _avg(b["sp"], b["sp_n"]), _avg(b["sf"], b["sf_n"])
+        max_react = round(b["rf_max"], 1) if b["rf_n"] else None
+        max_resol = round(b["sf_max"], 1) if b["sf_n"] else None
         out.append({
             "name": b["name"], "count": b["count"],
             "assignees": len(b["assignees"]),
@@ -132,6 +139,11 @@ def _sla_by_request_type(issues: list[dict]) -> list[dict]:
             "fakt": {
                 "reaction_min": fakt_react, "resolution_min": fakt_resol,
                 "total_min": round((fakt_react or 0) + (fakt_resol or 0), 1),
+            },
+            # maximum (worst-case) Fakt seen — for the avg/max toggle
+            "fakt_max": {
+                "reaction_min": max_react, "resolution_min": max_resol,
+                "total_min": round((max_react or 0) + (max_resol or 0), 1),
             },
             "reaction_pass_rate_pct": _pct(b["react_met"], b["react_breach"]),
             "resolution_pass_rate_pct": _pct(b["resol_met"], b["resol_breach"]),

@@ -22,6 +22,7 @@ import { SlaByRequestType } from "./components/SlaByRequestType";
 import { ResourceUtilization } from "./components/ResourceUtilization";
 import { RequestTypeUsage } from "./components/RequestTypeUsage";
 import { RequestTypeDynamics } from "./components/RequestTypeDynamics";
+import { PanelMaximizeModal } from "./components/PanelMaximizeModal";
 import { useI18n, LANGS } from "./i18n";
 import { useBreakpoint } from "./useBreakpoint";
 import { usePopupOpen, useTemurMinimized, setTemurMinimized } from "./popup";
@@ -101,6 +102,7 @@ export default function App() {
   const temurMin = useTemurMinimized();   // collapse the floating Temur dock out of the way (auto-resets when the last popup closes)
   const [view, setView] = useState<"dashboard" | "usage" | "dynamics">("dashboard");   // top-nav page switch
   const [menuOpen, setMenuOpen] = useState(false);   // mobile/tablet hamburger menu
+  const [maxPanel, setMaxPanel] = useState<"sla" | "resource" | null>(null);   // maximized dashboard panel
   const { data, upload, uploadBatch, online, epicQuality, project, projects, setProject } = usePortfolio();
   const [eqOpen, setEqOpen] = useState(false);
   const [eqCount, setEqCount] = useState(0);     // flagged new-epic count (badge)
@@ -431,19 +433,29 @@ export default function App() {
         {/* ============ SLA BY REQUEST TYPE ============ */}
         {(data?.widgets as any)?.sla_by_request_type?.length ? (
           <div style={{ ...card, height: isDesktop ? 460 : 440, display: "flex", flexDirection: "column" }}>
-            <SlaByRequestType />
+            <SlaByRequestType onMaximize={() => setMaxPanel("sla")} />
           </div>
         ) : null}
 
         {/* ============ RESOURCE UTILIZATION ============ */}
         {(data?.widgets as any)?.resource_utilization?.staff?.length ? (
           <div style={{ ...card, height: isDesktop ? 460 : 440, display: "flex", flexDirection: "column" }}>
-            <ResourceUtilization />
+            <ResourceUtilization onMaximize={() => setMaxPanel("resource")} />
           </div>
         ) : null}
         </>
         )}
       </main>
+
+      {/* ============ MAXIMIZED PANEL MODAL (dashboard panels) ============ */}
+      <AnimatePresence>
+        {maxPanel && (
+          <PanelMaximizeModal onClose={() => setMaxPanel(null)}>
+            {maxPanel === "sla" && <SlaByRequestType />}
+            {maxPanel === "resource" && <ResourceUtilization />}
+          </PanelMaximizeModal>
+        )}
+      </AnimatePresence>
 
       {/* ============ MOBILE ARIA — floating round button + chat panel ============ */}
       {isMobile && (
