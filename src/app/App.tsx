@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Calendar, Users, LayoutGrid, FileText,
-  Search, Settings, Bell, ChevronDown, MessageCircle, Sparkles, X, Upload, Sun, Moon, PartyPopper, Menu, ShieldAlert, AlertTriangle,
+  LayoutGrid, TrendingUp,
+  Search, Settings, Bell, ChevronDown, MessageCircle, Sparkles, X, Upload, Sun, Moon, Menu,
 } from "lucide-react";
 import { usePortfolio } from "./portfolio";
 import { useTheme } from "./theme";
@@ -17,15 +17,11 @@ import { DrillDownHost } from "./components/DrillDownHost";
 import { EpicQualityModal } from "./components/EpicQualityModal";
 import { IssueDetailHost } from "./components/IssueDetailHost";
 import { openDrill } from "./drill";
-import { WellnessChart } from "./components/WellnessChart";
-import { TtmComparePanel } from "./components/TtmComparePanel";
-import { PatientFlowChart } from "./components/PatientFlowChart";
-import { HealthcareProviders } from "./components/HealthcareProviders";
 import { AriaPanel } from "./components/AriaPanel";
-import { BestProjects } from "./components/BestProjects";
 import { SlaByRequestType } from "./components/SlaByRequestType";
-import { CalendarView } from "./components/CalendarView";
-import { RiskDashboard } from "./components/RiskDashboard";
+import { ResourceUtilization } from "./components/ResourceUtilization";
+import { RequestTypeUsage } from "./components/RequestTypeUsage";
+import { RequestTypeDynamics } from "./components/RequestTypeDynamics";
 import { useI18n, LANGS } from "./i18n";
 import { useBreakpoint } from "./useBreakpoint";
 import { usePopupOpen, useTemurMinimized, setTemurMinimized } from "./popup";
@@ -57,12 +53,9 @@ const card: React.CSSProperties = {
 const innerDivider = "1px solid var(--divider)";
 const GAP = 10;
 
-const navIcons = [
-  { icon: Calendar, tkey: "nav_calendar" },
-  { icon: ShieldAlert, tkey: "nav_risk" },
-  { icon: Users, tkey: "nav_patients" },
-  { icon: LayoutGrid, tkey: "nav_records" },
-  { icon: FileText, tkey: "nav_documents" },
+const navItems = [
+  { view: "usage" as const, icon: TrendingUp, tkey: "nav_usage" },
+  { view: "dynamics" as const, icon: LayoutGrid, tkey: "nav_dynamics" },
 ];
 
 /* ---------- header metric sparkline (proportional: value/total bars tinted) ---------- */
@@ -106,7 +99,7 @@ export default function App() {
   const [ariaOpen, setAriaOpen] = useState(false);
   const popupOpen = usePopupOpen();   // any modal open → float Temur on top (right side)
   const temurMin = useTemurMinimized();   // collapse the floating Temur dock out of the way (auto-resets when the last popup closes)
-  const [view, setView] = useState<"dashboard" | "calendar" | "risk">("dashboard");   // top-nav page switch
+  const [view, setView] = useState<"dashboard" | "usage" | "dynamics">("dashboard");   // top-nav page switch
   const [menuOpen, setMenuOpen] = useState(false);   // mobile/tablet hamburger menu
   const { data, upload, uploadBatch, online, epicQuality } = usePortfolio();
   const [eqOpen, setEqOpen] = useState(false);
@@ -193,12 +186,6 @@ export default function App() {
     }
   };
 
-  /* TTM comparison card (Discovery/Delivery/Total + Lead, by year/quarter/month) */
-  const stressCard = (extra: React.CSSProperties = {}) => (
-    <div style={{ ...card, display: "flex", flexDirection: "column", ...extra }}>
-      <TtmComparePanel />
-    </div>
-  );
 
   return (
     <div
@@ -234,19 +221,20 @@ export default function App() {
                 </span>
                 {t("nav_dashboard")}
               </button>
-              {navIcons.map(({ icon: Icon, tkey }) => {
-                const isCal = tkey === "nav_calendar";
-                const isRisk = tkey === "nav_risk";
-                const active = (isCal && view === "calendar") || (isRisk && view === "risk");
-                const onClick = isCal ? () => setView("calendar") : isRisk ? () => setView("risk") : undefined;
+              {navItems.map(({ icon: Icon, tkey, view: v }) => {
+                const active = view === v;
                 return (
-                  <button key={tkey} title={t(tkey)} onClick={onClick}
-                    style={{ width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                  <button key={tkey} title={t(tkey)} onClick={() => setView(v)}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px 8px 8px", borderRadius: 999, cursor: "pointer",
                       color: active ? "var(--active-text)" : "var(--header-icon)",
                       background: active ? "var(--active-bg)" : undefined,
-                      boxShadow: active ? "var(--active-glow)" : undefined,
-                      ...(active ? {} : glassCircle) }}>
-                    <Icon size={17} />
+                      boxShadow: active ? "var(--active-glow)" : undefined, border: "none",
+                      fontSize: "0.83rem", fontWeight: 300,
+                      ...(active ? {} : glassCircle), ...(active ? {} : { width: "auto", borderRadius: 999 }) }}>
+                    <span style={{ width: 26, height: 26, borderRadius: "50%", background: active ? "var(--active-chip)" : "transparent", color: active ? "var(--active-icon)" : "var(--header-icon)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Icon size={14} />
+                    </span>
+                    {t(tkey)}
                   </button>
                 );
               })}
@@ -311,22 +299,9 @@ export default function App() {
             </div>
           )}
 
-          {/* new-epic QA alert — desktop only (badge = flagged count) */}
-          {isDesktop && (
-            <button onClick={() => setEqOpen(true)} title={t("tip_epic_quality")} style={{ width: 42, height: 42, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: eqCount > 0 ? "#e0574f" : "var(--header-icon)", position: "relative", ...glassCircle }}>
-              <AlertTriangle size={17} />
-              {eqCount > 0 && (
-                <span style={{ position: "absolute", top: -2, right: -2, minWidth: 17, height: 17, padding: "0 4px", borderRadius: 999, background: "#e0574f", color: "#fff", fontSize: "0.6rem", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid var(--bg)" }}>{eqCount}</span>
-              )}
-            </button>
-          )}
-
           {/* settings + bell — desktop only */}
           {isDesktop && (
             <>
-              <button onClick={toggleCel} title={celOn ? t("tip_celebrations_on") : t("tip_celebrations_off")} style={{ width: 42, height: 42, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: celOn ? "#3ad94f" : "var(--header-icon)", ...glassCircle }}>
-                <PartyPopper size={17} />
-              </button>
               <button onClick={() => setDqOpen(true)} title={t("tip_data_quality")} style={{ width: 42, height: 42, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--header-icon)", ...glassCircle }}>
                 <Settings size={17} />
               </button>
@@ -351,11 +326,9 @@ export default function App() {
                     >
                       {[
                         { icon: MessageCircle, label: t("nav_dashboard"), active: view === "dashboard", onClick: () => setView("dashboard") },
-                        { icon: Calendar, label: t("nav_calendar"), active: view === "calendar", onClick: () => setView("calendar") },
-                        { icon: ShieldAlert, label: t("nav_risk"), active: view === "risk", onClick: () => setView("risk") },
-                        { icon: AlertTriangle, label: `${t("eq_title")}${eqCount > 0 ? ` (${eqCount})` : ""}`, onClick: () => setEqOpen(true) },
+                        { icon: TrendingUp, label: t("nav_usage"), active: view === "usage", onClick: () => setView("usage") },
+                        { icon: LayoutGrid, label: t("nav_dynamics"), active: view === "dynamics", onClick: () => setView("dynamics") },
                         { icon: Settings, label: t("tip_data_quality"), onClick: () => setDqOpen(true) },
-                        { icon: PartyPopper, label: celOn ? t("tip_celebrations_on") : t("tip_celebrations_off"), onClick: toggleCel },
                       ].map(({ icon: Ic, label, active, onClick }) => (
                         <button key={label} onClick={() => { onClick(); setMenuOpen(false); }}
                           style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left",
@@ -392,35 +365,29 @@ export default function App() {
           minHeight: 0,
         }}
       >
-        {view === "calendar" ? (
-          <CalendarView />
-        ) : view === "risk" ? (
-          <RiskDashboard />
+        {view === "usage" ? (
+          <RequestTypeUsage />
+        ) : view === "dynamics" ? (
+          <RequestTypeDynamics />
         ) : (
         <>
-        {/* Title (left) + metrics cluster (right) */}
-        <div style={{ display: "flex", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", gap: isMobile ? 14 : 32, flexWrap: isDesktop ? "nowrap" : "wrap", flexDirection: isMobile ? "column" : "row" }}>
-          <div style={{ maxWidth: isDesktop ? 560 : "100%", flexShrink: 0 }}>
-            <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} style={{ fontSize: isMobile ? 30 : isTablet ? 40 : 50, fontWeight: 300, color: "#ffffff", letterSpacing: "-1px", margin: 0, lineHeight: 1.05 }}>
-              {t("title")}
-            </motion.h1>
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} style={{ fontSize: isMobile ? 14 : 19, fontWeight: 300, color: "rgba(255,255,255,0.85)", margin: "8px 0 0 0" }}>
-              {t("subtitle")}
-            </motion.p>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 22 : 38, flexShrink: 0, flexWrap: "wrap" }}>
-            <Metric value={hm ? hm[0].value : null} total={hm ? hm[0].value : 0} tint="#2e9e5f" label={t("kpi_total_projects")} onClick={() => openDrill(t("kpi_total_projects"), { scope: "epics" })} />
-            <Metric value={hm ? hm[1].value : null} total={hm ? hm[0].value : 0} tint="#2e9e5f" label={t("kpi_completed")} onClick={() => openDrill(t("kpi_completed"), { scope: "epics", state: "completed" })} />
-            <Metric value={hm ? hm[2].value : null} total={hm ? hm[0].value : 0} tint="#3b82c4" label={t("kpi_open")} onClick={() => openDrill(t("kpi_open"), { scope: "epics", state: "open" })} />
-          </div>
+        {/* Title */}
+        <div style={{ flexShrink: 0 }}>
+          <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} style={{ fontSize: isMobile ? 30 : isTablet ? 40 : 46, fontWeight: 300, color: "#ffffff", letterSpacing: "-1px", margin: 0, lineHeight: 1.05 }}>
+            {t("title")}
+          </motion.h1>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} style={{ fontSize: isMobile ? 14 : 18, fontWeight: 300, color: "rgba(255,255,255,0.85)", margin: "8px 0 0 0" }}>
+            {t("subtitle")}
+          </motion.p>
         </div>
 
-        {/* ============ ITSM SLA HEADLINE (only shows when SLA data is present) ============ */}
+        {/* ============ ITSM SLA HEADLINE ============ */}
         {(() => {
           const sla = (data?.widgets as any)?.sla_summary;
-          if (!sla || !sla.total_itsm_issues) return null;
-          const card = { background: "var(--card)", borderRadius: 14, boxShadow: "var(--shadow)", padding: "14px 18px", display: "flex", flexDirection: "column" as const, gap: 4, minWidth: 160 };
+          if (!sla || !sla.total_itsm_issues) return (
+            <div style={{ ...card, padding: 30, textAlign: "center", color: "var(--muted)", fontSize: "0.9rem" }}>{t("itsm_no_data")}</div>
+          );
+          const kc = { background: "var(--card)", borderRadius: 14, boxShadow: "var(--shadow)", padding: "14px 18px", display: "flex", flexDirection: "column" as const, gap: 4, minWidth: 160 };
           const rate = (v: number | null) => v == null ? "—" : `${v}%`;
           const tint = (v: number | null) => v == null ? "var(--muted)" : v >= 90 ? "#2d7a5f" : v >= 75 ? "#d4a84b" : "#e07a7a";
           const fmtMin = (m: number | null) => { if (m == null) return "—"; if (m < 60) return `${Math.round(m)}m`; const h = Math.floor(m / 60), mm = Math.round(m % 60); return mm ? `${h}h ${mm}m` : `${h}h`; };
@@ -430,99 +397,27 @@ export default function App() {
           );
           return (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: GAP }}>
-              <div style={card}><span style={lbl}>{t("sla_kpi_tickets")}</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text)" }}>{sla.total_itsm_issues}</span><span style={{ fontSize: "0.7rem", color: "var(--soft)" }}>{sla.distinct_request_types} {t("up_projects")} · {sla.distinct_assignees} {t("sla_assignees")}</span></div>
-              <div style={card}><span style={lbl}>{t("sla_kpi_reaction")}</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.reaction.pass_rate_pct) }}>{rate(sla.reaction.pass_rate_pct)}</span>{planFakt(sla.reaction.plan_avg_min, sla.reaction.fakt_avg_min)}</div>
-              <div style={card}><span style={lbl}>{t("sla_kpi_resolution")}</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.resolution.pass_rate_pct) }}>{rate(sla.resolution.pass_rate_pct)}</span>{planFakt(sla.resolution.plan_avg_min, sla.resolution.fakt_avg_min)}</div>
-              <div style={card}><span style={lbl}>{t("sla_kpi_overall")}</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.overall_pass_rate_pct) }}>{rate(sla.overall_pass_rate_pct)}</span>{planFakt(sla.total.plan_avg_min, sla.total.fakt_avg_min)}</div>
+              <div style={kc}><span style={lbl}>{t("sla_kpi_tickets")}</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text)" }}>{sla.total_itsm_issues}</span><span style={{ fontSize: "0.7rem", color: "var(--soft)" }}>{sla.distinct_request_types} {t("up_projects")} · {sla.distinct_assignees} {t("sla_assignees")}</span></div>
+              <div style={kc}><span style={lbl}>{t("sla_kpi_reaction")}</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.reaction.pass_rate_pct) }}>{rate(sla.reaction.pass_rate_pct)}</span>{planFakt(sla.reaction.plan_avg_min, sla.reaction.fakt_avg_min)}</div>
+              <div style={kc}><span style={lbl}>{t("sla_kpi_resolution")}</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.resolution.pass_rate_pct) }}>{rate(sla.resolution.pass_rate_pct)}</span>{planFakt(sla.resolution.plan_avg_min, sla.resolution.fakt_avg_min)}</div>
+              <div style={kc}><span style={lbl}>{t("sla_kpi_overall")}</span><span style={{ fontSize: "1.5rem", fontWeight: 700, color: tint(sla.overall_pass_rate_pct) }}>{rate(sla.overall_pass_rate_pct)}</span>{planFakt(sla.total.plan_avg_min, sla.total.fakt_avg_min)}</div>
             </div>
           );
         })()}
 
-        {/* ============ ITSM SLA BY REQUEST TYPE (full-width) ============ */}
+        {/* ============ SLA BY REQUEST TYPE ============ */}
         {(data?.widgets as any)?.sla_by_request_type?.length ? (
-          <div style={{ ...card, minHeight: 420, display: "flex", flexDirection: "column" }}>
+          <div style={{ ...card, height: isDesktop ? 460 : 440, display: "flex", flexDirection: "column" }}>
             <SlaByRequestType />
           </div>
         ) : null}
 
-        {/* ============ DESKTOP LAYOUT ============ */}
-        {isDesktop && (
-          <div style={{ display: "grid", gridTemplateColumns: "2.4fr 0.95fr", gap: GAP, flex: 1, minHeight: 0 }}>
-            {/* Left region: Wellness|Stress (top) + Best|Healthcare (bottom) */}
-            <div style={{ display: "flex", flexDirection: "column", gap: GAP, minHeight: 0 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.3fr", gap: GAP, flex: "1.5 1 0", minHeight: 0 }}>
-                <div style={{ ...card }}><WellnessChart /></div>
-                {stressCard()}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "0.9fr 1.5fr", gap: GAP, flex: "1.2 1 0", minHeight: 0 }}>
-                <div style={{ ...card }}><BestProjects /></div>
-                <div style={{ ...card }}><HealthcareProviders /></div>
-              </div>
-            </div>
-
-            {/* Right region: Patient Flow (shorter) + Temur (taller).
-                When a popup opens, Temur detaches into a tall right-side dock that
-                floats ABOVE the modal backdrop — so you can keep asking Temur to
-                drive the dashboard while a popup is open. */}
-            <div style={{ display: "flex", flexDirection: "column", gap: GAP, minHeight: 0 }}>
-              <div style={{ ...card, flex: "1.26 1 0", minHeight: 0 }}><PatientFlowChart /></div>
-              {popupOpen && temurMin ? (
-                /* Collapsed: a small pill at the bottom-right that restores Temur
-                   (so it never blocks a wide popup like the Kanban board) */
-                <button
-                  onClick={() => setTemurMinimized(false)}
-                  title={t("temur_restore")}
-                  style={{ position: "fixed", right: 18, bottom: 18, zIndex: 480, display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 999, border: "none", cursor: "pointer", color: "#fff", background: "linear-gradient(165deg, #083A47 0%, #0c5563 50%, #4EB6A6 100%)", boxShadow: "0 10px 28px rgba(8,58,71,0.5)", fontSize: "0.8rem", fontWeight: 600 }}
-                >
-                  <MessageCircle size={16} /> Temur
-                </button>
-              ) : (
-                <div
-                  style={popupOpen
-                    ? { position: "fixed", right: 18, top: 80, bottom: 18, width: "min(390px, 30vw)", zIndex: 480, borderRadius: 14, boxShadow: "0 24px 70px rgba(0,0,0,0.5)", overflow: "hidden" }
-                    : { flex: "1.44 1 0", minHeight: 0 }}
-                >
-                  {popupOpen && (
-                    /* Minimize the floating dock down to the corner pill */
-                    <button
-                      onClick={() => setTemurMinimized(true)}
-                      title={t("temur_minimize")}
-                      style={{ position: "absolute", top: 10, right: 10, zIndex: 2, width: 28, height: 28, borderRadius: 8, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.18)", color: "#fff", backdropFilter: "blur(6px)" }}
-                    >
-                      <ChevronDown size={16} />
-                    </button>
-                  )}
-                  <AriaPanel />
-                </div>
-              )}
-            </div>
+        {/* ============ RESOURCE UTILIZATION ============ */}
+        {(data?.widgets as any)?.resource_utilization?.staff?.length ? (
+          <div style={{ ...card, height: isDesktop ? 460 : 440, display: "flex", flexDirection: "column" }}>
+            <ResourceUtilization />
           </div>
-        )}
-
-        {/* ============ TABLET LAYOUT (2 columns) ============ */}
-        {isTablet && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: GAP }}>
-            {/* charts need a DEFINITE height (recharts absolute-inset pattern collapses to 0 with only min-height) */}
-            <div style={{ ...card, height: 340, display: "flex", flexDirection: "column" }}><WellnessChart /></div>
-            {stressCard({ height: 360 })}
-            <div style={{ ...card, minHeight: 320 }}><PatientFlowChart /></div>
-            <div style={{ ...card, minHeight: 320 }}><BestProjects /></div>
-            <div style={{ ...card, minHeight: 300, gridColumn: "1 / 3" }}><HealthcareProviders /></div>
-            <div style={{ minHeight: 360, gridColumn: "1 / 3" }}><AriaPanel /></div>
-          </div>
-        )}
-
-        {/* ============ MOBILE LAYOUT (single column stack) ============ */}
-        {isMobile && (
-          <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
-            {/* charts need a DEFINITE height (recharts absolute-inset pattern collapses to 0 with only min-height) */}
-            <div style={{ ...card, height: 340, display: "flex", flexDirection: "column" }}><WellnessChart /></div>
-            {stressCard({ height: 420 })}
-            <div style={{ ...card, minHeight: 340 }}><PatientFlowChart /></div>
-            <div style={{ ...card, minHeight: 280 }}><BestProjects /></div>
-            <div style={{ ...card, minHeight: 320 }}><HealthcareProviders /></div>
-          </div>
-        )}
+        ) : null}
         </>
         )}
       </main>
@@ -571,19 +466,9 @@ export default function App() {
         {dqOpen && <DataQualityModal onClose={() => setDqOpen(false)} />}
       </AnimatePresence>
 
-      {/* TTM analysis (open from the TTM panel expand button) */}
-      <AnimatePresence>
-        {ttmOpen && <TtmModal preset={ttmPreset} onClose={() => setTtmOpen(false)} />}
-      </AnimatePresence>
-
       {/* Analyze a new task / report against the portfolio (open from Temur's + button) */}
       <AnimatePresence>
         {analyzeOpen && <AnalyzeModal onClose={() => setAnalyzeOpen(false)} />}
-      </AnimatePresence>
-
-      {/* New-epic QA: Temur flags unclear/incomplete new PMD epics + drafts author feedback */}
-      <AnimatePresence>
-        {eqOpen && <EpicQualityModal onClose={() => setEqOpen(false)} />}
       </AnimatePresence>
 
       {/* Drill-down popup: any number opens the underlying issue list */}
@@ -591,9 +476,6 @@ export default function App() {
 
       {/* Issue detail popup: full issue info in-app (no Jira access needed) */}
       <IssueDetailHost />
-
-      {/* Celebrations: recently-closed epics + leaderboard changes (confetti) */}
-      <Celebrations />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 dashboard widgets 1:1, and (b) the full analytics payload."""
 import collections
 from .metrics import engines as E
+from .metrics import itsm as ITSM
 
 
 def _last(seq, n):
@@ -222,6 +223,10 @@ def build(issues: list[dict]) -> dict:
     # Type (ITSM Service Desk tickets); portfolio data passes through empty.
     sla_summary = _sla_summary(issues)
     sla_by_request_type = _sla_by_request_type(issues)
+    resource_utilization = ITSM.resource_utilization(issues)
+    request_type_usage = ITSM.request_type_usage(issues)
+    resource_calendar = ITSM.resource_calendar(issues)
+    request_type_dynamics = ITSM.request_type_dynamics(issues)
 
     return {
         "widgets": {
@@ -235,6 +240,10 @@ def build(issues: list[dict]) -> dict:
             "pm_leaderboard": pm_widget,
             "sla_summary": sla_summary,
             "sla_by_request_type": sla_by_request_type,
+            "resource_utilization": resource_utilization,
+            "request_type_usage": request_type_usage,
+            "resource_calendar": resource_calendar,
+            "request_type_dynamics": request_type_dynamics,
         },
         "kpis": kpis,
         "analytics": {
