@@ -1,0 +1,13 @@
+# SLANEST — single-process container (SPA + API on :8090).
+# Build + run:  docker compose -f docker-compose.slanest.yml up -d --build
+# Then open:    http://localhost:8090
+services:
+  slanest:
+    build: .
+    image: slanest:latest
+    container_name: slanest
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./storage:/app/storage
+    restart: unless-stopped

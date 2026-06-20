@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install frontend deps
+        run: npm ci || npm install
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend deps
+        run: pip install openpyxl xlrd
+
+      - name: Backend import + syntax check
+        run: |
+          python -m py_compile backend/server.py
+          python -c "import ast,glob; [ast.parse(open(f,encoding='utf-8').read()) for f in glob.glob('backend/**/*.py', recursive=True)]"
+          echo "Backend OK"
+
+      - name: Smoke-test the server boots
+        run: |
+          PN_PORT=8099 python backend/server.py &
+          sleep 4
+          curl -fsS http://localhost:8099/api/health | grep -q '"status": "ok"'
+          echo "Server boots + health OK"
