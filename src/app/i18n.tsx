@@ -19,6 +19,7 @@ const en = {
   chart_sla_title: "SLA chart — by IT service", chart_resource_title: "Workload chart — by staff",
   chart_planfakt: "Plan vs Actual", chart_passrate: "Pass-rate",
   chart_most: "Most-used chart", chart_least: "Least-used chart", chart_all: "Volume chart",
+  search_none: "Nothing found — try a different spelling.",
   // resource utilization
   res_title: "Resource utilization", res_by_staff: "By staff", res_by_type: "By request type",
   res_search: "Search…", res_staff: "staff", res_tickets: "Tickets", res_types: "Types",
@@ -248,6 +249,7 @@ const ru: Dict = {
   chart_sla_title: "График SLA — по IT услугам", chart_resource_title: "График нагрузки — по сотрудникам",
   chart_planfakt: "План и Факт", chart_passrate: "Выполнение",
   chart_most: "График: чаще всего", chart_least: "График: реже всего", chart_all: "График объёма",
+  search_none: "Ничего не найдено — попробуйте другое написание.",
   res_title: "Загрузка ресурсов", res_by_staff: "По сотрудникам", res_by_type: "По типу запроса",
   res_search: "Поиск…", res_staff: "сотр.", res_tickets: "Заявок", res_types: "Типы",
   res_staff_count: "Сотр.", res_who: "Кто", res_closed_calendar: "Календарь закрытых заявок",
@@ -472,6 +474,7 @@ const uz: Dict = {
   chart_sla_title: "SLA grafigi — IT xizmatlar bo'yicha", chart_resource_title: "Yuklama grafigi — xodimlar bo'yicha",
   chart_planfakt: "Reja va Fakt", chart_passrate: "Bajarilish",
   chart_most: "Grafik: eng ko'p", chart_least: "Grafik: eng kam", chart_all: "Hajm grafigi",
+  search_none: "Hech narsa topilmadi — boshqacha yozib ko'ring.",
   res_title: "Resurs bandligi", res_by_staff: "Xodimlar bo'yicha", res_by_type: "So'rov turi bo'yicha",
   res_search: "Qidirish…", res_staff: "xodim", res_tickets: "Zayavka", res_types: "Turlar",
   res_staff_count: "Xodim", res_who: "Kim", res_closed_calendar: "Yopilgan zayavkalar kalendari",

@@ -449,6 +449,18 @@ class Handler(BaseHTTPRequestHandler):
             return self._serve_static(route)
         if route == "/api/projects":
             return self._send(_projects_list())
+        if route == "/api/search":
+            sq = parse_qs(urlparse(self.path).query)
+            query = sq.get("q", [""])[0]
+            proj = sq.get("project", [None])[0]
+            data = storage.load_current()
+            if not data or not data.get("issues"):
+                return self._send({"query": query, "request_types": [], "staff": [], "issues": []})
+            issues = data["issues"]
+            if proj and proj.lower() != "all":
+                issues = [i for i in issues if (i.get("project") or "") == proj]
+            from app.metrics import itsm as ITSM
+            return self._send(ITSM.search(issues, query))
         if route == "/api/dashboard":
             q = parse_qs(urlparse(self.path).query)
             proj = q.get("project", [None])[0]

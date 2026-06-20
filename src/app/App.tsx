@@ -25,6 +25,7 @@ import { RequestTypeDynamics } from "./components/RequestTypeDynamics";
 import { PanelMaximizeModal } from "./components/PanelMaximizeModal";
 import { TimeFilter } from "./components/TimeFilter";
 import { SlaChart, ResourceChart } from "./components/PanelCharts";
+import { GlobalSearch } from "./components/GlobalSearch";
 import { useI18n, LANGS } from "./i18n";
 import { useBreakpoint } from "./useBreakpoint";
 import { usePopupOpen, useTemurMinimized, setTemurMinimized } from "./popup";
@@ -295,13 +296,8 @@ export default function App() {
             <span style={{ position: "absolute", bottom: 6, right: 7, width: 7, height: 7, borderRadius: "50%", background: online ? "#1f9d57" : "#e53e3e", border: "1.5px solid #cfe0e2" }} />
           </button>
 
-          {/* Search — desktop + tablet */}
-          {!isMobile && (
-            <div style={{ display: "flex", alignItems: "center", gap: 9, borderRadius: 999, padding: "9px 18px", width: isTablet ? 160 : 210, ...glassPanel }}>
-              <Search size={15} color="var(--header-icon)" />
-              <input placeholder={t("search")} style={{ border: "none", outline: "none", background: "transparent", fontSize: "0.82rem", color: "var(--search-text)", fontFamily: "var(--font-sans)", width: "100%" }} />
-            </div>
-          )}
+          {/* Smart global search — desktop + tablet */}
+          {!isMobile && <GlobalSearch width={isTablet ? 160 : 210} />}
 
           {/* settings + bell — desktop only */}
           {isDesktop && (

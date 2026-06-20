@@ -18,6 +18,7 @@ interface PortfolioState {
   periodValue: string;
   periods: any;
   setPeriod: (period: string, value?: string) => void;
+  search: (q: string) => Promise<any>;
   refresh: () => void;
   upload: (file: File, mode?: "replace" | "merge") => Promise<any>;
   uploadBatch: (files: File[], mode?: "replace" | "merge", onProgress?: (done: number, total: number, current: string, lastResult?: any) => void) => Promise<{ results: any[]; summary: any }>;
@@ -43,6 +44,7 @@ const Ctx = createContext<PortfolioState>({
   data: null, loading: true, online: false, meta: null,
   project: "all", projects: [], setProject: () => {},
   period: "all", periodValue: "", periods: { has_dates: false, years: [], quarters: [], months: [], weeks: [] }, setPeriod: () => {},
+  search: async () => ({ request_types: [], staff: [], issues: [] }),
   refresh: () => {}, upload: async () => ({}), uploadBatch: async () => ({ results: [], summary: {} }), ask: async () => ({}),
   pmBoard: async () => ({ rows: [] }), notifications: async () => ({ epics: [], tasks: [] }),
   dataQuality: async () => ({ fields: [] }), statusAudit: async () => ({ has_data: false }), drill: async () => ({ issues: [] }),
@@ -96,6 +98,15 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     setProjectState(p);
     refresh({ project: p });
   }, [refresh]);
+
+  const search = useCallback(async (qstr: string) => {
+    try {
+      const r = await fetch(`${API}/api/search?q=${encodeURIComponent(qstr)}&project=${encodeURIComponent(project)}`);
+      return await r.json();
+    } catch {
+      return { request_types: [], staff: [], issues: [] };
+    }
+  }, [project]);
 
   // Setting a period also picks a sensible default value (latest) when needed
   const setPeriod = useCallback((per: string, val?: string) => {
@@ -324,7 +335,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ data, loading, online, meta, project, projects, setProject, period, periodValue, periods, setPeriod, refresh, upload, uploadBatch, ask, pmBoard, notifications, dataQuality, statusAudit, drill, issueDetail, issueSummary, issueRecommend, ttm, analyze, calendar, risk, flow, epicQuality, epicQualityRecommend }}>
+    <Ctx.Provider value={{ data, loading, online, meta, project, projects, setProject, period, periodValue, periods, setPeriod, search, refresh, upload, uploadBatch, ask, pmBoard, notifications, dataQuality, statusAudit, drill, issueDetail, issueSummary, issueRecommend, ttm, analyze, calendar, risk, flow, epicQuality, epicQualityRecommend }}>
       {children}
     </Ctx.Provider>
   );
