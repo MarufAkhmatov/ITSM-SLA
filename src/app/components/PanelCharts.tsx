@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
+  AreaChart, Area, CartesianGrid, Legend,
 } from "recharts";
 import { BarChart3 } from "lucide-react";
 import { usePortfolio } from "../portfolio";
@@ -70,14 +71,21 @@ export function SlaChart() {
       </div>
       <ResponsiveContainer width="100%" height="88%">
         {metric === "time" ? (
-          <BarChart data={timeData} layout="vertical" margin={{ left: 4, right: 24, top: 2, bottom: 2 }}>
-            <XAxis type="number" tick={{ fontSize: 10, fill: "var(--muted)" }} axisLine={false} tickLine={false} unit="m" />
-            <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10, fill: "var(--soft)" }} axisLine={false} tickLine={false} />
+          /* TTM-Trend style: smooth gradient areas — Plan / Actual Avg / Maximum */
+          <AreaChart data={timeData} margin={{ top: 8, right: 10, left: -18, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gPlan" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={PLAN} stopOpacity={0.30} /><stop offset="100%" stopColor={PLAN} stopOpacity={0} /></linearGradient>
+              <linearGradient id="gFakt" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={FAKT} stopOpacity={0.40} /><stop offset="100%" stopColor={FAKT} stopOpacity={0} /></linearGradient>
+              <linearGradient id="gMax" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={MAX} stopOpacity={0.34} /><stop offset="100%" stopColor={MAX} stopOpacity={0} /></linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} stroke="var(--divider)" strokeDasharray="3 4" />
+            <XAxis dataKey="name" tick={{ fontSize: 8.5, fill: "#9aa5b4" }} axisLine={false} tickLine={false} interval={0} angle={-32} textAnchor="end" height={56} />
+            <YAxis tick={{ fontSize: 9, fill: "#9aa5b4" }} axisLine={false} tickLine={false} width={42} tickFormatter={(v: any) => fmtMin(Number(v))} />
             <Tooltip formatter={(v: any, n: any) => [fmtMin(Number(v)), n === "Fakt" ? t("sla_fakt_avg") : n === "Max" ? t("sla_fakt_max") : t("sla_plan")]} labelFormatter={(_l: any, p: any) => p?.[0]?.payload?.full || ""} contentStyle={{ borderRadius: 10, fontSize: "0.76rem" }} />
-            <Bar dataKey="Plan" fill={PLAN} radius={[0, 3, 3, 0]} maxBarSize={7} />
-            <Bar dataKey="Fakt" fill={FAKT} radius={[0, 3, 3, 0]} maxBarSize={7} />
-            <Bar dataKey="Max" fill={MAX} radius={[0, 3, 3, 0]} maxBarSize={7} />
-          </BarChart>
+            <Area type="monotone" dataKey="Plan" stroke={PLAN} strokeWidth={2.2} fill="url(#gPlan)" dot={false} activeDot={{ r: 3 }} animationDuration={900} />
+            <Area type="monotone" dataKey="Fakt" stroke={FAKT} strokeWidth={2.2} fill="url(#gFakt)" dot={false} activeDot={{ r: 3 }} animationDuration={900} />
+            <Area type="monotone" dataKey="Max" stroke={MAX} strokeWidth={2.2} fill="url(#gMax)" dot={false} activeDot={{ r: 3 }} animationDuration={900} />
+          </AreaChart>
         ) : (
           <BarChart data={rateData} layout="vertical" margin={{ left: 4, right: 30, top: 2, bottom: 2 }}>
             <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: "var(--muted)" }} axisLine={false} tickLine={false} unit="%" />
