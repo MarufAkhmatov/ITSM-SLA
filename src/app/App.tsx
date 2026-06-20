@@ -24,6 +24,7 @@ import { RequestTypeUsage } from "./components/RequestTypeUsage";
 import { RequestTypeDynamics } from "./components/RequestTypeDynamics";
 import { PanelMaximizeModal } from "./components/PanelMaximizeModal";
 import { TimeFilter } from "./components/TimeFilter";
+import { SlaChart, ResourceChart } from "./components/PanelCharts";
 import { useI18n, LANGS } from "./i18n";
 import { useBreakpoint } from "./useBreakpoint";
 import { usePopupOpen, useTemurMinimized, setTemurMinimized } from "./popup";
@@ -434,17 +435,23 @@ export default function App() {
           );
         })()}
 
-        {/* ============ SLA BY REQUEST TYPE ============ */}
+        {/* ============ SLA BY REQUEST TYPE + chart ============ */}
         {(data?.widgets as any)?.sla_by_request_type?.length ? (
-          <div style={{ ...card, height: isDesktop ? 460 : 440, display: "flex", flexDirection: "column" }}>
-            <SlaByRequestType onMaximize={() => setMaxPanel("sla")} />
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1.5fr 1fr" : "1fr", gap: GAP }}>
+            <div style={{ ...card, height: isDesktop ? 460 : 440, display: "flex", flexDirection: "column" }}>
+              <SlaByRequestType onMaximize={() => setMaxPanel("sla")} />
+            </div>
+            <div style={{ height: isDesktop ? 460 : 320 }}><SlaChart /></div>
           </div>
         ) : null}
 
-        {/* ============ RESOURCE UTILIZATION ============ */}
+        {/* ============ RESOURCE UTILIZATION + chart ============ */}
         {(data?.widgets as any)?.resource_utilization?.staff?.length ? (
-          <div style={{ ...card, height: isDesktop ? 460 : 440, display: "flex", flexDirection: "column" }}>
-            <ResourceUtilization onMaximize={() => setMaxPanel("resource")} />
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1.5fr 1fr" : "1fr", gap: GAP }}>
+            <div style={{ ...card, height: isDesktop ? 460 : 440, display: "flex", flexDirection: "column" }}>
+              <ResourceUtilization onMaximize={() => setMaxPanel("resource")} />
+            </div>
+            <div style={{ height: isDesktop ? 460 : 320 }}><ResourceChart /></div>
           </div>
         ) : null}
         </>

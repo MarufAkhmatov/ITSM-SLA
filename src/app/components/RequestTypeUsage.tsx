@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, Search, Info, Maximize2, X } from "lucide-rea
 import { usePortfolio } from "../portfolio";
 import { useI18n } from "../i18n";
 import { PanelMaximizeModal } from "./PanelMaximizeModal";
+import { UsageChart } from "./PanelCharts";
 import { usePopupOpenSignal, useTemurBesidePad } from "../popup";
 
 type Row = {
@@ -115,13 +116,23 @@ export function RequestTypeUsage() {
         <Kpi label={t("usage_single_use")} value={all.filter(r => r.count === 1).length} sub={t("usage_single_use_sub")} />
       </div>
 
-      {/* most + least — capped height so the All-types table sits above the fold */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: GAP }}>
+      {/* most used — table + chart side by side */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: GAP }}>
         {mostPanel(true)}
-        {leastPanel(true)}
+        <div style={{ height: 340 }}><UsageChart rows={most} color="#2d7a5f" title={t("chart_most")} /></div>
       </div>
 
-      {allPanel(true)}
+      {/* least used — table + chart side by side */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: GAP }}>
+        {leastPanel(true)}
+        <div style={{ height: 340 }}><UsageChart rows={least} color="#e07a7a" title={t("chart_least")} /></div>
+      </div>
+
+      {/* all types — table + chart side by side */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: GAP }}>
+        {allPanel(true)}
+        <div style={{ height: 420 }}><UsageChart rows={filtered} color="#0c5563" title={t("chart_all")} /></div>
+      </div>
 
       {/* row detail */}
       <AnimatePresence>
