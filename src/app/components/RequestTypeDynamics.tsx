@@ -50,11 +50,6 @@ export function RequestTypeDynamics() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
-      <div>
-        <h1 style={{ fontSize: 34, fontWeight: 300, color: "#fff", margin: 0, letterSpacing: "-0.5px" }}>{t("dyn_title")}</h1>
-        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", margin: "6px 0 0" }}>{t("dyn_subtitle")}</p>
-      </div>
-
       {/* controls */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
         <div style={{ display: "flex", borderRadius: 999, background: "var(--card)", padding: 4, boxShadow: "var(--shadow)" }}>

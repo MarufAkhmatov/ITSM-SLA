@@ -24,6 +24,7 @@ import { RequestTypeUsage } from "./components/RequestTypeUsage";
 import { RequestTypeDynamics } from "./components/RequestTypeDynamics";
 import { PanelMaximizeModal } from "./components/PanelMaximizeModal";
 import { TimeFilter } from "./components/TimeFilter";
+import { ProjectDropdown } from "./components/ProjectDropdown";
 import { SlaChart, ResourceChart } from "./components/PanelCharts";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { useI18n, LANGS } from "./i18n";
@@ -359,37 +360,42 @@ export default function App() {
         className="pn-scroll"
         style={{
           flex: 1,
-          padding: isMobile ? `4px 16px ${ariaOpen ? 16 : 96}px` : `4px ${isTablet ? 20 : 32}px 24px`,
+          padding: isMobile ? `4px 16px ${ariaOpen ? 16 : 96}px` : `4px ${isTablet ? 20 : 32}px 18px`,
           display: "flex",
           flexDirection: "column",
           gap: GAP,
           minHeight: 0,
-          overflowY: "auto",   // pages taller than the viewport (IT services / Dynamics) scroll here
+          // Dashboard on desktop = one screen, no page scroll (panels fit the frame).
+          // IT services / Dynamics scroll (they carry more content). Mobile always scrolls.
+          overflowY: (isDesktop && view === "dashboard") ? "hidden" : "auto",
         }}
       >
-        {/* ===== Service-desk project filter — shared across all pages ===== */}
-        {projects.length > 1 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.06em", marginRight: 2 }}>{t("filter_service_desk")}</span>
-            {[{ key: "all", count: projects.reduce((s, p) => s + p.count, 0) }, ...projects].map(p => {
-              const active = project === p.key;
-              return (
-                <button key={p.key} onClick={() => setProject(p.key)}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, cursor: "pointer", border: "none",
-                    fontSize: "0.8rem", fontWeight: active ? 700 : 500,
-                    background: active ? "#fff" : "rgba(255,255,255,0.14)",
-                    color: active ? "#0c5563" : "#fff",
-                    backdropFilter: "blur(8px)", boxShadow: active ? "0 4px 14px rgba(0,0,0,0.18)" : "none" }}>
-                  {p.key === "all" ? t("filter_all") : p.key}
-                  <span style={{ fontSize: "0.66rem", opacity: 0.7, fontWeight: 600 }}>{p.count}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ===== Global time filter — affects every page + panel ===== */}
-        <TimeFilter />
+        {/* ===== Shared page header: title + Service-desk dropdown (right) /
+                 subtitle + Period filter (right) — same on every page ===== */}
+        {(() => {
+          const heads: Record<string, [string, string]> = {
+            dashboard: [t("title"), t("subtitle")],
+            usage: [t("usage_title"), t("usage_subtitle")],
+            dynamics: [t("dyn_title"), t("dyn_subtitle")],
+          };
+          const [ttl, sub] = heads[view] || heads.dashboard;
+          return (
+            <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} style={{ fontSize: isMobile ? 26 : isTablet ? 34 : 40, fontWeight: 300, color: "#ffffff", letterSpacing: "-1px", margin: 0, lineHeight: 1.05 }}>
+                  {ttl}
+                </motion.h1>
+                <ProjectDropdown />
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} style={{ fontSize: isMobile ? 13 : 16, fontWeight: 300, color: "rgba(255,255,255,0.85)", margin: 0, maxWidth: 620 }}>
+                  {sub}
+                </motion.p>
+                <TimeFilter />
+              </div>
+            </div>
+          );
+        })()}
 
         {view === "usage" ? (
           <RequestTypeUsage />
@@ -397,16 +403,6 @@ export default function App() {
           <RequestTypeDynamics />
         ) : (
         <>
-        {/* Title */}
-        <div style={{ flexShrink: 0 }}>
-          <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} style={{ fontSize: isMobile ? 30 : isTablet ? 40 : 46, fontWeight: 300, color: "#ffffff", letterSpacing: "-1px", margin: 0, lineHeight: 1.05 }}>
-            {t("title")}
-          </motion.h1>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} style={{ fontSize: isMobile ? 14 : 18, fontWeight: 300, color: "rgba(255,255,255,0.85)", margin: "8px 0 0 0" }}>
-            {t("subtitle")}
-          </motion.p>
-        </div>
-
         {/* ============ ITSM SLA HEADLINE ============ */}
         {(() => {
           const sla = (data?.widgets as any)?.sla_summary;
@@ -433,21 +429,21 @@ export default function App() {
 
         {/* ============ SLA BY REQUEST TYPE + chart ============ */}
         {(data?.widgets as any)?.sla_by_request_type?.length ? (
-          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1.5fr 1fr" : "1fr", gap: GAP }}>
-            <div style={{ ...card, height: isDesktop ? 460 : 440, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1.5fr 1fr" : "1fr", gap: GAP, flex: isDesktop ? "1 1 0" : undefined, minHeight: isDesktop ? 0 : undefined }}>
+            <div style={{ ...card, height: isDesktop ? "100%" : 440, minHeight: 0, display: "flex", flexDirection: "column" }}>
               <SlaByRequestType onMaximize={() => setMaxPanel("sla")} />
             </div>
-            <div style={{ height: isDesktop ? 460 : 320 }}><SlaChart /></div>
+            <div style={{ height: isDesktop ? "100%" : 320, minHeight: 0 }}><SlaChart /></div>
           </div>
         ) : null}
 
         {/* ============ RESOURCE UTILIZATION + chart ============ */}
         {(data?.widgets as any)?.resource_utilization?.staff?.length ? (
-          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1.5fr 1fr" : "1fr", gap: GAP }}>
-            <div style={{ ...card, height: isDesktop ? 460 : 440, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1.5fr 1fr" : "1fr", gap: GAP, flex: isDesktop ? "1 1 0" : undefined, minHeight: isDesktop ? 0 : undefined }}>
+            <div style={{ ...card, height: isDesktop ? "100%" : 440, minHeight: 0, display: "flex", flexDirection: "column" }}>
               <ResourceUtilization onMaximize={() => setMaxPanel("resource")} />
             </div>
-            <div style={{ height: isDesktop ? 460 : 320 }}><ResourceChart /></div>
+            <div style={{ height: isDesktop ? "100%" : 320, minHeight: 0 }}><ResourceChart /></div>
           </div>
         ) : null}
         </>

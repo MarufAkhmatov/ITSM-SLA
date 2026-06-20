@@ -104,11 +104,6 @@ export function RequestTypeUsage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
-      <div>
-        <h1 style={{ fontSize: 34, fontWeight: 300, color: "#fff", margin: 0, letterSpacing: "-0.5px" }}>{t("usage_title")}</h1>
-        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", margin: "6px 0 0" }}>{t("usage_subtitle")}</p>
-      </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))", gap: GAP }}>
         <Kpi label={t("usage_total_types")} value={usage.total_types} />
         <Kpi label={t("usage_total_tickets")} value={usage.total_tickets} />
