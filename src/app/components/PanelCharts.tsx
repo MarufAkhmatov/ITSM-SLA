@@ -8,6 +8,7 @@ import { useI18n } from "../i18n";
 
 const PLAN = "#9aa5b4";
 const FAKT = "#0c5563";
+const MAX = "#e07a7a";   // maximum (worst-case) actual SLA
 const fmtMin = (m: number | null | undefined) => {
   if (m == null) return "—";
   if (m < 60) return `${Math.round(m)}m`;
@@ -37,7 +38,12 @@ export function SlaChart() {
   if (!rows.length) return null;
   const top = rows.slice(0, 10);
 
-  const timeData = top.map(r => ({ name: r.name.slice(0, 18), Plan: r.plan?.total_min ?? 0, Fakt: r.fakt?.total_min ?? 0, full: r.name }));
+  const timeData = top.map(r => ({
+    name: r.name.slice(0, 18), full: r.name,
+    Plan: r.plan?.total_min ?? 0,
+    Fakt: r.fakt?.total_min ?? 0,
+    Max: r.fakt_max?.total_min ?? 0,
+  }));
   const rateData = top.map(r => ({
     name: r.name.slice(0, 18), full: r.name,
     react: r.reaction_pass_rate_pct ?? 0, resol: r.resolution_pass_rate_pct ?? 0,
@@ -45,22 +51,32 @@ export function SlaChart() {
 
   return (
     <ChartShell title={t("chart_sla_title")}>
-      <div style={{ display: "flex", borderRadius: 999, background: "var(--surface2)", padding: 3, marginBottom: 8, width: "fit-content" }}>
-        {(["time", "rate"] as const).map(m => (
-          <button key={m} onClick={() => setMetric(m)}
-            style={{ border: "none", cursor: "pointer", borderRadius: 999, padding: "4px 11px", fontSize: "0.7rem", fontWeight: 600, background: metric === m ? "var(--card)" : "transparent", color: metric === m ? "var(--text)" : "var(--muted)" }}>
-            {t(m === "time" ? "chart_planfakt" : "chart_passrate")}
-          </button>
-        ))}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", borderRadius: 999, background: "var(--surface2)", padding: 3, width: "fit-content" }}>
+          {(["time", "rate"] as const).map(m => (
+            <button key={m} onClick={() => setMetric(m)}
+              style={{ border: "none", cursor: "pointer", borderRadius: 999, padding: "4px 11px", fontSize: "0.7rem", fontWeight: 600, background: metric === m ? "var(--card)" : "transparent", color: metric === m ? "var(--text)" : "var(--muted)" }}>
+              {t(m === "time" ? "chart_planfakt" : "chart_passrate")}
+            </button>
+          ))}
+        </div>
+        {metric === "time" && (
+          <div style={{ display: "flex", gap: 10, fontSize: "0.62rem", color: "var(--soft)" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i style={{ width: 9, height: 9, borderRadius: 2, background: PLAN }} /> {t("sla_plan")}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i style={{ width: 9, height: 9, borderRadius: 2, background: FAKT }} /> {t("sla_fakt_avg")}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i style={{ width: 9, height: 9, borderRadius: 2, background: MAX }} /> {t("sla_fakt_max")}</span>
+          </div>
+        )}
       </div>
-      <ResponsiveContainer width="100%" height="92%">
+      <ResponsiveContainer width="100%" height="88%">
         {metric === "time" ? (
           <BarChart data={timeData} layout="vertical" margin={{ left: 4, right: 24, top: 2, bottom: 2 }}>
             <XAxis type="number" tick={{ fontSize: 10, fill: "var(--muted)" }} axisLine={false} tickLine={false} unit="m" />
             <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10, fill: "var(--soft)" }} axisLine={false} tickLine={false} />
-            <Tooltip formatter={(v: any) => fmtMin(Number(v))} labelFormatter={(_l: any, p: any) => p?.[0]?.payload?.full || ""} contentStyle={{ borderRadius: 10, fontSize: "0.76rem" }} />
-            <Bar dataKey="Plan" fill={PLAN} radius={[0, 4, 4, 0]} maxBarSize={9} />
-            <Bar dataKey="Fakt" fill={FAKT} radius={[0, 4, 4, 0]} maxBarSize={9} />
+            <Tooltip formatter={(v: any, n: any) => [fmtMin(Number(v)), n === "Fakt" ? t("sla_fakt_avg") : n === "Max" ? t("sla_fakt_max") : t("sla_plan")]} labelFormatter={(_l: any, p: any) => p?.[0]?.payload?.full || ""} contentStyle={{ borderRadius: 10, fontSize: "0.76rem" }} />
+            <Bar dataKey="Plan" fill={PLAN} radius={[0, 3, 3, 0]} maxBarSize={7} />
+            <Bar dataKey="Fakt" fill={FAKT} radius={[0, 3, 3, 0]} maxBarSize={7} />
+            <Bar dataKey="Max" fill={MAX} radius={[0, 3, 3, 0]} maxBarSize={7} />
           </BarChart>
         ) : (
           <BarChart data={rateData} layout="vertical" margin={{ left: 4, right: 30, top: 2, bottom: 2 }}>
