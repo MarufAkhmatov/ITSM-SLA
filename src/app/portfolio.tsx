@@ -14,6 +14,10 @@ interface PortfolioState {
   project: string;
   projects: { key: string; count: number }[];
   setProject: (p: string) => void;
+  period: string;
+  periodValue: string;
+  periods: any;
+  setPeriod: (period: string, value?: string) => void;
   refresh: () => void;
   upload: (file: File, mode?: "replace" | "merge") => Promise<any>;
   uploadBatch: (files: File[], mode?: "replace" | "merge", onProgress?: (done: number, total: number, current: string, lastResult?: any) => void) => Promise<{ results: any[]; summary: any }>;
@@ -38,6 +42,7 @@ interface PortfolioState {
 const Ctx = createContext<PortfolioState>({
   data: null, loading: true, online: false, meta: null,
   project: "all", projects: [], setProject: () => {},
+  period: "all", periodValue: "", periods: { has_dates: false, years: [], quarters: [], months: [], weeks: [] }, setPeriod: () => {},
   refresh: () => {}, upload: async () => ({}), uploadBatch: async () => ({ results: [], summary: {} }), ask: async () => ({}),
   pmBoard: async () => ({ rows: [] }), notifications: async () => ({ epics: [], tasks: [] }),
   dataQuality: async () => ({ fields: [] }), statusAudit: async () => ({ has_data: false }), drill: async () => ({ issues: [] }),
@@ -60,15 +65,24 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [meta, setMeta] = useState<any | null>(null);
   const [project, setProjectState] = useState<string>("all");   // active service-desk filter
   const [projects, setProjects] = useState<{ key: string; count: number }[]>([]);
+  const [period, setPeriodState] = useState<string>("all");     // all | year | quarter | month | week
+  const [periodValue, setPeriodValue] = useState<string>("");   // e.g. "2026", "2026-Q2", "2026-03"
+  const [periods, setPeriods] = useState<any>({ has_dates: false, years: [], quarters: [], months: [], weeks: [] });
 
-  const refresh = useCallback(async (proj?: string) => {
+  // refresh accepts a partial override so project + period can change together
+  const refresh = useCallback(async (over?: { project?: string; period?: string; value?: string }) => {
     setLoading(true);
-    const p = proj ?? project;
+    const p = over?.project ?? project;
+    const per = over?.period ?? period;
+    const val = over?.value ?? periodValue;
     try {
-      const r = await fetch(`${API}/api/dashboard?project=${encodeURIComponent(p)}`);
+      const qs = `project=${encodeURIComponent(p)}&period=${encodeURIComponent(per)}&value=${encodeURIComponent(val)}`;
+      const r = await fetch(`${API}/api/dashboard?${qs}`);
       const j = await r.json();
       setOnline(true);
-      if (j.has_data) { setData(j); setMeta(j.meta); if (j.projects) setProjects(j.projects); }
+      if (j.projects) setProjects(j.projects);
+      if (j.periods) setPeriods(j.periods);
+      if (j.has_data) { setData(j); setMeta(j.meta); }
       else { setData(null); setMeta(null); }
     } catch {
       setOnline(false);
@@ -76,14 +90,22 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [project]);
+  }, [project, period, periodValue]);
 
   const setProject = useCallback((p: string) => {
     setProjectState(p);
-    refresh(p);
+    refresh({ project: p });
   }, [refresh]);
 
-  useEffect(() => { refresh("all"); /* eslint-disable-next-line */ }, []);
+  // Setting a period also picks a sensible default value (latest) when needed
+  const setPeriod = useCallback((per: string, val?: string) => {
+    setPeriodState(per);
+    const v = per === "all" ? "" : (val ?? periodValue);
+    setPeriodValue(v);
+    refresh({ period: per, value: v });
+  }, [refresh, periodValue]);
+
+  useEffect(() => { refresh({ project: "all", period: "all", value: "" }); /* eslint-disable-next-line */ }, []);
 
   const upload = useCallback(async (file: File, mode: "replace" | "merge" = "replace") => {
     const r = await fetch(`${API}/api/upload?filename=${encodeURIComponent(file.name)}&mode=${mode}`, {
@@ -302,7 +324,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ data, loading, online, meta, project, projects, setProject, refresh, upload, uploadBatch, ask, pmBoard, notifications, dataQuality, statusAudit, drill, issueDetail, issueSummary, issueRecommend, ttm, analyze, calendar, risk, flow, epicQuality, epicQualityRecommend }}>
+    <Ctx.Provider value={{ data, loading, online, meta, project, projects, setProject, period, periodValue, periods, setPeriod, refresh, upload, uploadBatch, ask, pmBoard, notifications, dataQuality, statusAudit, drill, issueDetail, issueSummary, issueRecommend, ttm, analyze, calendar, risk, flow, epicQuality, epicQualityRecommend }}>
       {children}
     </Ctx.Provider>
   );

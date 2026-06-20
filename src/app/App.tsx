@@ -23,6 +23,7 @@ import { ResourceUtilization } from "./components/ResourceUtilization";
 import { RequestTypeUsage } from "./components/RequestTypeUsage";
 import { RequestTypeDynamics } from "./components/RequestTypeDynamics";
 import { PanelMaximizeModal } from "./components/PanelMaximizeModal";
+import { TimeFilter } from "./components/TimeFilter";
 import { useI18n, LANGS } from "./i18n";
 import { useBreakpoint } from "./useBreakpoint";
 import { usePopupOpen, useTemurMinimized, setTemurMinimized } from "./popup";
@@ -389,6 +390,9 @@ export default function App() {
             })}
           </div>
         )}
+
+        {/* ===== Global time filter — affects every page + panel ===== */}
+        <TimeFilter />
 
         {view === "usage" ? (
           <RequestTypeUsage />

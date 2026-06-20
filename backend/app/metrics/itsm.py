@@ -7,6 +7,8 @@ date columns, so those populate only after a History export (which carries
 Создано + status transitions) is uploaded and enriches the issues.
 """
 import collections
+import difflib
+import re
 import datetime as dt
 
 
@@ -230,3 +232,102 @@ def request_type_dynamics(issues: list[dict]) -> dict:
         })
     out.sort(key=lambda x: -x["total"])
     return {"has_dates": has_dates, "request_types": out}
+
+
+# ---- Smart fuzzy search -----------------------------------------------------
+_WORD_RE = re.compile(r"[^\wЀ-ӿ]+", re.UNICODE)
+
+
+def _norm(s: str) -> str:
+    return (s or "").strip().lower()
+
+
+def _tokens(s: str) -> list[str]:
+    return [w for w in _WORD_RE.split(_norm(s)) if w]
+
+
+def _fuzzy_score(query: str, text: str) -> float:
+    """Typo-tolerant relevance score in [0, 1] between a query and a candidate.
+    Combines exact/substring hits, token overlap, and difflib ratios so a
+    slightly-misspelled query still matches the nearest item."""
+    q, txt = _norm(query), _norm(text)
+    if not q or not txt:
+        return 0.0
+    if q == txt:
+        return 1.0
+    if q in txt:
+        # substring: longer match relative to the field = stronger
+        return 0.9 + 0.1 * (len(q) / len(txt))
+    qt, tt = _tokens(q), _tokens(txt)
+    qset, tset = set(qt), set(tt)
+    overlap = len(qset & tset) / max(1, len(qset))
+    # whole-string ratio (catches transpositions/typos across the phrase)
+    ratio = difflib.SequenceMatcher(None, q, txt).ratio()
+    # best single-token ratio (query vs each word) — handles one-word queries
+    best_tok = max((difflib.SequenceMatcher(None, q, w).ratio() for w in tt), default=0.0)
+    # any token of the query strongly inside any token of the text
+    sub_tok = 0.0
+    for w in qt:
+        if any(w in tw or tw in w for tw in tt):
+            sub_tok = max(sub_tok, 0.8)
+    return max(ratio, best_tok * 0.95, overlap * 0.85, sub_tok)
+
+
+def search(issues: list[dict], query: str, limit: int = 8) -> dict:
+    """Fuzzy search across IT services (request types), staff (assignees) and
+    issues (key + summary). Returns ranked groups. Tolerant of typos."""
+    items = _itsm_issues(issues)
+    q = _norm(query)
+    if not q:
+        return {"query": query, "request_types": [], "staff": [], "issues": []}
+
+    # aggregate distinct request types + staff with counts
+    crt_counts: collections.Counter = collections.Counter()
+    staff_counts: collections.Counter = collections.Counter()
+    for i in items:
+        crt_counts[i["customer_request_type"]] += 1
+        if i.get("assignee"):
+            staff_counts[i["assignee"]] += 1
+
+    THRESH = 0.42
+
+    rt_scored = []
+    for name, cnt in crt_counts.items():
+        sc = _fuzzy_score(q, name)
+        if sc >= THRESH:
+            rt_scored.append({"name": name, "count": cnt, "score": round(sc, 3)})
+    rt_scored.sort(key=lambda x: (-x["score"], -x["count"]))
+
+    staff_scored = []
+    for name, cnt in staff_counts.items():
+        sc = _fuzzy_score(q, name)
+        if sc >= THRESH:
+            staff_scored.append({"name": name, "count": cnt, "score": round(sc, 3)})
+    staff_scored.sort(key=lambda x: (-x["score"], -x["count"]))
+
+    issue_scored = []
+    for i in items:
+        key = i.get("key", "")
+        summ = i.get("summary", "")
+        sc = max(_fuzzy_score(q, key), _fuzzy_score(q, summ),
+                 _fuzzy_score(q, f"{key} {summ}"))
+        if sc >= THRESH:
+            issue_scored.append({
+                "key": key, "summary": summ,
+                "customer_request_type": i.get("customer_request_type"),
+                "assignee": i.get("assignee"), "status": i.get("status"),
+                "project": i.get("project"), "score": round(sc, 3),
+            })
+    issue_scored.sort(key=lambda x: -x["score"])
+
+    return {
+        "query": query,
+        "request_types": rt_scored[:limit],
+        "staff": staff_scored[:limit],
+        "issues": issue_scored[:limit],
+        "counts": {
+            "request_types": len(rt_scored),
+            "staff": len(staff_scored),
+            "issues": len(issue_scored),
+        },
+    }

@@ -280,21 +280,93 @@ def _projects_list():
     return {"has_data": True, "total": len(issues), "projects": projects}
 
 
-def _payload_for(project: str | None):
-    """Build (and cache) the widget payload filtered to one service-desk project.
-    project None / 'all' / '' → the full dataset's pre-built payload."""
+# ---- global time filter (year / quarter / month / week) ---------------------
+def _issue_dt(i: dict):
+    """The calendar date used for time filtering: resolved first, else created.
+    Both come from the History export (the .xls issue export has no dates)."""
+    s = i.get("resolved") or i.get("created")
+    if not s:
+        return None
+    try:
+        return dt.datetime.fromisoformat(s)
+    except Exception:
+        return None
+
+
+def _period_keys(d: dt.datetime) -> dict:
+    iso = d.isocalendar()
+    return {
+        "year": d.strftime("%Y"),
+        "quarter": f"{d.year}-Q{(d.month - 1) // 3 + 1}",
+        "month": d.strftime("%Y-%m"),
+        "week": f"{iso[0]}-W{iso[1]:02d}",
+    }
+
+
+def _available_periods(issues: list[dict]) -> dict:
+    """Distinct period keys present in the data, for the filter dropdowns."""
+    years, quarters, months, weeks = set(), set(), set(), set()
+    dated = 0
+    for i in issues:
+        d = _issue_dt(i)
+        if not d:
+            continue
+        dated += 1
+        k = _period_keys(d)
+        years.add(k["year"]); quarters.add(k["quarter"]); months.add(k["month"]); weeks.add(k["week"])
+    return {
+        "has_dates": dated > 0,
+        "dated_issues": dated,
+        "years": sorted(years),
+        "quarters": sorted(quarters),
+        "months": sorted(months),
+        "weeks": sorted(weeks),
+    }
+
+
+def _filter_period(issues: list[dict], period: str | None, value: str | None) -> list[dict]:
+    if not period or period.lower() == "all" or not value:
+        return issues
+    out = []
+    for i in issues:
+        d = _issue_dt(i)
+        if not d:
+            continue
+        if _period_keys(d).get(period) == value:
+            out.append(i)
+    return out
+
+
+def _projects_list():
+    """Distinct service-desk project keys with ticket counts, plus available periods."""
+    data = storage.load_current()
+    if not data or not data.get("issues"):
+        return {"has_data": False, "projects": []}
+    issues = data["issues"]
+    counts: dict[str, int] = {}
+    for i in issues:
+        counts[i.get("project") or "?"] = counts.get(i.get("project") or "?", 0) + 1
+    projects = [{"key": k, "count": v} for k, v in sorted(counts.items(), key=lambda x: -x[1])]
+    return {"has_data": True, "total": len(issues), "projects": projects,
+            "periods": _available_periods(issues)}
+
+
+def _payload_for(project: str | None, period: str | None = None, value: str | None = None):
+    """Build (and cache) the widget payload filtered to one service-desk project
+    AND one time period. project/period None/'all' → no filter on that axis."""
     data = storage.load_current()
     if not data or not data.get("issues"):
         return None
     issues = data["issues"]
-    if not project or project.lower() == "all":
+    no_proj = (not project or project.lower() == "all")
+    no_period = (not period or period.lower() == "all" or not value)
+    if no_proj and no_period:
         return data.get("payload") or aggregate.build(issues)
-    key = (project, len(issues))
+    key = (project or "all", period or "all", value or "", len(issues))
     if key in _proj_cache:
         return _proj_cache[key]
-    subset = [i for i in issues if (i.get("project") or "") == project]
-    if not subset:
-        return None
+    subset = issues if no_proj else [i for i in issues if (i.get("project") or "") == project]
+    subset = _filter_period(subset, period, value)
     payload = aggregate.build(subset)
     _proj_cache[key] = payload
     return payload
@@ -378,12 +450,20 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/api/projects":
             return self._send(_projects_list())
         if route == "/api/dashboard":
-            proj = parse_qs(urlparse(self.path).query).get("project", [None])[0]
-            p = _payload_for(proj)
+            q = parse_qs(urlparse(self.path).query)
+            proj = q.get("project", [None])[0]
+            period = q.get("period", [None])[0]
+            value = q.get("value", [None])[0]
+            p = _payload_for(proj, period, value)
+            pl = _projects_list()
             if not p:
-                return self._send({"has_data": False})
+                return self._send({"has_data": True, "empty_period": True,
+                                   "project": proj or "all", "period": period or "all", "value": value or "",
+                                   "projects": pl.get("projects", []), "periods": pl.get("periods", {}),
+                                   "widgets": {}, "kpis": {}})
             return self._send({"has_data": True, "meta": storage.load_current_meta(),
-                               "project": proj or "all", "projects": _projects_list().get("projects", []),
+                               "project": proj or "all", "period": period or "all", "value": value or "",
+                               "projects": pl.get("projects", []), "periods": pl.get("periods", {}),
                                "widgets": p["widgets"], "kpis": p["kpis"]})
         if route == "/api/analytics":
             proj = parse_qs(urlparse(self.path).query).get("project", [None])[0]
