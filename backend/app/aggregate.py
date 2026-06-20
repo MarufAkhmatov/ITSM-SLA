@@ -239,6 +239,7 @@ def build(issues: list[dict]) -> dict:
     request_type_usage = ITSM.request_type_usage(issues)
     resource_calendar = ITSM.resource_calendar(issues)
     request_type_dynamics = ITSM.request_type_dynamics(issues)
+    sla_trend = ITSM.sla_trend(issues)
 
     return {
         "widgets": {
@@ -256,6 +257,7 @@ def build(issues: list[dict]) -> dict:
             "request_type_usage": request_type_usage,
             "resource_calendar": resource_calendar,
             "request_type_dynamics": request_type_dynamics,
+            "sla_trend": sla_trend,
         },
         "kpis": kpis,
         "analytics": {

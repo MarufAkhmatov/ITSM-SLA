@@ -35,16 +35,22 @@ export function SlaChart() {
   const { data } = usePortfolio();
   const { t } = useI18n();
   const rows: any[] = (data?.widgets as any)?.sla_by_request_type || [];
+  const trend = (data?.widgets as any)?.sla_trend;
   const [metric, setMetric] = useState<"time" | "rate">("time");
+  const [gran, setGran] = useState<"month" | "quarter" | "year">("quarter");
   if (!rows.length) return null;
   const top = rows.slice(0, 10);
 
-  const timeData = top.map(r => ({
-    name: r.name.slice(0, 18), full: r.name,
-    Plan: r.plan?.total_min ?? 0,
-    Fakt: r.fakt?.total_min ?? 0,
-    Max: r.fakt_max?.total_min ?? 0,
-  }));
+  // When dates exist, plot the real time-trend (periods on the x-axis, like the
+  // TTM Trend). Otherwise fall back to per-IT-service on the x-axis.
+  const trendByGran = trend?.has_dates ? (trend.by_gran?.[gran] || []) : null;
+  const timeData = (trendByGran && trendByGran.length)
+    ? trendByGran.map((p: any) => ({ name: p.period, full: `${p.period} · ${p.count}`, Plan: p.plan, Fakt: p.fakt, Max: p.max }))
+    : top.map(r => ({
+        name: r.name.slice(0, 18), full: r.name,
+        Plan: r.plan?.total_min ?? 0, Fakt: r.fakt?.total_min ?? 0, Max: r.fakt_max?.total_min ?? 0,
+      }));
+  const isTimeTrend = !!(trendByGran && trendByGran.length);
   const rateData = top.map(r => ({
     name: r.name.slice(0, 18), full: r.name,
     react: r.reaction_pass_rate_pct ?? 0, resol: r.resolution_pass_rate_pct ?? 0,
@@ -53,13 +59,25 @@ export function SlaChart() {
   return (
     <ChartShell title={t("chart_sla_title")}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", borderRadius: 999, background: "var(--surface2)", padding: 3, width: "fit-content" }}>
-          {(["time", "rate"] as const).map(m => (
-            <button key={m} onClick={() => setMetric(m)}
-              style={{ border: "none", cursor: "pointer", borderRadius: 999, padding: "4px 11px", fontSize: "0.7rem", fontWeight: 600, background: metric === m ? "var(--card)" : "transparent", color: metric === m ? "var(--text)" : "var(--muted)" }}>
-              {t(m === "time" ? "chart_planfakt" : "chart_passrate")}
-            </button>
-          ))}
+        <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", borderRadius: 999, background: "var(--surface2)", padding: 3, width: "fit-content" }}>
+            {(["time", "rate"] as const).map(m => (
+              <button key={m} onClick={() => setMetric(m)}
+                style={{ border: "none", cursor: "pointer", borderRadius: 999, padding: "4px 11px", fontSize: "0.7rem", fontWeight: 600, background: metric === m ? "var(--card)" : "transparent", color: metric === m ? "var(--text)" : "var(--muted)" }}>
+                {t(m === "time" ? "chart_planfakt" : "chart_passrate")}
+              </button>
+            ))}
+          </div>
+          {metric === "time" && trend?.has_dates && (
+            <div style={{ display: "flex", borderRadius: 999, background: "var(--surface2)", padding: 3, width: "fit-content" }}>
+              {(["year", "quarter", "month"] as const).map(g => (
+                <button key={g} onClick={() => setGran(g)}
+                  style={{ border: "none", cursor: "pointer", borderRadius: 999, padding: "4px 10px", fontSize: "0.68rem", fontWeight: 600, background: gran === g ? "var(--card)" : "transparent", color: gran === g ? "var(--text)" : "var(--muted)" }}>
+                  {t(`gran_${g}`)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {metric === "time" && (
           <div style={{ display: "flex", gap: 10, fontSize: "0.62rem", color: "var(--soft)" }}>
@@ -69,7 +87,7 @@ export function SlaChart() {
           </div>
         )}
       </div>
-      <ResponsiveContainer width="100%" height="88%">
+      <ResponsiveContainer width="100%" height="86%">
         {metric === "time" ? (
           /* TTM-Trend style: smooth gradient areas — Plan / Actual Avg / Maximum */
           <AreaChart data={timeData} margin={{ top: 8, right: 10, left: -18, bottom: 0 }}>
@@ -79,7 +97,7 @@ export function SlaChart() {
               <linearGradient id="gMax" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={MAX} stopOpacity={0.34} /><stop offset="100%" stopColor={MAX} stopOpacity={0} /></linearGradient>
             </defs>
             <CartesianGrid vertical={false} stroke="var(--divider)" strokeDasharray="3 4" />
-            <XAxis dataKey="name" tick={{ fontSize: 8.5, fill: "#9aa5b4" }} axisLine={false} tickLine={false} interval={0} angle={-32} textAnchor="end" height={56} />
+            <XAxis dataKey="name" tick={{ fontSize: isTimeTrend ? 10 : 8.5, fill: "#9aa5b4" }} axisLine={false} tickLine={false} interval={0} angle={isTimeTrend ? 0 : -32} textAnchor={isTimeTrend ? "middle" : "end"} height={isTimeTrend ? 22 : 56} />
             <YAxis tick={{ fontSize: 9, fill: "#9aa5b4" }} axisLine={false} tickLine={false} width={42} tickFormatter={(v: any) => fmtMin(Number(v))} />
             <Tooltip formatter={(v: any, n: any) => [fmtMin(Number(v)), n === "Fakt" ? t("sla_fakt_avg") : n === "Max" ? t("sla_fakt_max") : t("sla_plan")]} labelFormatter={(_l: any, p: any) => p?.[0]?.payload?.full || ""} contentStyle={{ borderRadius: 10, fontSize: "0.76rem" }} />
             <Area type="monotone" dataKey="Plan" stroke={PLAN} strokeWidth={2.2} fill="url(#gPlan)" dot={false} activeDot={{ r: 3 }} animationDuration={900} />

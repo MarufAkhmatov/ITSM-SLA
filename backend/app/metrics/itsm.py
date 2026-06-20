@@ -153,6 +153,7 @@ def _period_keys(d: dt.datetime):
         "day": d.strftime("%Y-%m-%d"),
         "week": f"{iso[0]}-W{iso[1]:02d}",
         "month": d.strftime("%Y-%m"),
+        "quarter": f"{d.year}-Q{(d.month - 1) // 3 + 1}",
         "year": d.strftime("%Y"),
     }
 
@@ -177,7 +178,8 @@ def resource_calendar(issues: list[dict]) -> dict:
         a = i.get("assignee") or "Unassigned"
         keys = _period_keys(d)
         entry = cal.setdefault(a, {"day": collections.Counter(), "week": collections.Counter(),
-                                   "month": collections.Counter(), "year": collections.Counter()})
+                                   "month": collections.Counter(), "quarter": collections.Counter(),
+                                   "year": collections.Counter()})
         for gran, k in keys.items():
             entry[gran][k] += 1
 
@@ -331,3 +333,51 @@ def search(issues: list[dict], query: str, limit: int = 8) -> dict:
             "issues": len(issue_scored),
         },
     }
+
+
+# ---- SLA trend over time (TTM-Trend style: Plan / Avg / Max per period) ------
+def sla_trend(issues: list[dict]) -> dict:
+    """Per period (year/quarter/month/week), the average Plan, average Actual
+    (Fakt) and maximum Actual SLA total time (reaction+resolution), bucketed by
+    the resolved date. Drives the SLA area-trend chart. Empty until dates exist."""
+    items = _itsm_issues(issues)
+    grans = ("year", "quarter", "month", "week")
+    buckets: dict[str, dict] = {g: {} for g in grans}
+    has_dates = False
+    for i in items:
+        ds = i.get("resolved") or i.get("created")
+        if not ds:
+            continue
+        try:
+            d = dt.datetime.fromisoformat(ds)
+        except Exception:
+            continue
+        rp = i.get("sla_reaction_plan_min"); rf = i.get("sla_reaction_spent_min")
+        sp = i.get("sla_resolution_plan_min"); sf = i.get("sla_resolution_spent_min")
+        plan = (rp or 0) + (sp or 0)
+        fakt = (rf or 0) + (sf or 0)
+        if plan == 0 and fakt == 0:
+            continue
+        has_dates = True
+        keys = _period_keys(d)
+        for g in grans:
+            b = buckets[g].setdefault(keys[g], {"plan": 0.0, "pn": 0, "fakt": 0.0, "fn": 0, "max": 0.0, "count": 0})
+            b["count"] += 1
+            if plan: b["plan"] += plan; b["pn"] += 1
+            if fakt: b["fakt"] += fakt; b["fn"] += 1
+            b["max"] = max(b["max"], fakt)
+
+    def series(g):
+        out = []
+        for period in sorted(buckets[g].keys()):
+            b = buckets[g][period]
+            out.append({
+                "period": period,
+                "plan": round(b["plan"] / b["pn"], 1) if b["pn"] else 0,
+                "fakt": round(b["fakt"] / b["fn"], 1) if b["fn"] else 0,
+                "max": round(b["max"], 1),
+                "count": b["count"],
+            })
+        return out
+
+    return {"has_dates": has_dates, "by_gran": {g: series(g) for g in grans}}

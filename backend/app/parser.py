@@ -24,7 +24,11 @@ def parse_file(path: Path) -> list[dict]:
 
 def _parse_xls(path: Path) -> list[dict]:
     """Read a legacy Excel .xls (BIFF / OLE Compound) — the Jira ITSM Issue
-    Navigator export format. Requires xlrd>=2.0 (xls-only, no xlsx)."""
+    Navigator export format. Requires xlrd>=2.0 (xls-only, no xlsx).
+
+    Date cells (Создано / Дата решения / transition timestamps) are stored as
+    Excel serial numbers; we convert them to ISO strings so the date-based
+    reports (time filter, trends, calendars) work."""
     import xlrd
     wb = xlrd.open_workbook(str(path))
     sh = wb.sheet_by_index(0)
@@ -33,17 +37,21 @@ def _parse_xls(path: Path) -> list[dict]:
     header = [str(h or "").strip() for h in sh.row_values(0)]
     out: list[dict] = []
     for ri in range(1, sh.nrows):
-        row = sh.row_values(ri)
         rec: dict[str, str] = {}
         for ci, col in enumerate(header):
             if not col:
                 continue
-            v = row[ci] if ci < len(row) else ""
-            # xlrd returns floats for ints; trim trailing .0
-            if isinstance(v, float) and v.is_integer():
-                v = str(int(v))
+            ctype = sh.cell_type(ri, ci)
+            cval = sh.cell_value(ri, ci)
+            if ctype == xlrd.XL_CELL_DATE:
+                try:
+                    v = xlrd.xldate_as_datetime(cval, wb.datemode).isoformat()
+                except Exception:
+                    v = ""
+            elif isinstance(cval, float) and cval.is_integer():
+                v = str(int(cval))   # plain integers: drop the trailing .0
             else:
-                v = str(v).strip()
+                v = str(cval).strip()
             if col in rec and v:
                 rec[col] = f"{rec[col]}|{v}" if rec[col] else v
             else:
