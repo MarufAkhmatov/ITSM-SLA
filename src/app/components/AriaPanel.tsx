@@ -121,7 +121,8 @@ export function AriaPanel() {
         // (so Temur doesn't trigger itself); only "stop" gets through above.
         if (speaking) return;
 
-        const m = low.match(/(?:temur|t[ie]mur|тему?р|тимур)[\s,:!.]*(.*)/);
+        // Wake word "Amir" (RU "Амир") — tolerate common ASR variants.
+        const m = low.match(/(?:amir|am[ie]r|amer|emir|ам[ие]р|амур)[\s,:!.]*(.*)/);
         if (m) {
           const cmd = raw.slice(raw.length - m[1].length).trim();
           if (cmd) { armedRef.current = false; send(cmd); }
@@ -259,7 +260,7 @@ export function AriaPanel() {
           background: "radial-gradient(ellipse at 70% 30%, rgba(155,89,182,0.30) 0%, rgba(45,122,95,0.20) 45%, transparent 75%)",
         }} />
         <div style={{ position: "relative" }}>
-          <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#ffffff", lineHeight: 1.1 }}>Temur</div>
+          <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#ffffff", lineHeight: 1.1 }}>Amir</div>
           <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.55)" }}>{t("aria_sub")}</div>
         </div>
       </div>

@@ -21,7 +21,7 @@ import urllib.request
 from collections import Counter
 from . import config
 
-ASSISTANT_NAME = "Temur"
+ASSISTANT_NAME = "Amir"
 
 # ---- local memory / self-learning (persisted, grounded) --------------------
 _MEM = config.TEMP / "temur_memory.jsonl"

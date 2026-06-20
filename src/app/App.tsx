@@ -348,7 +348,7 @@ export default function App() {
             onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://ui-avatars.com/api/?name=Temur&background=8a5a2b&color=fff&bold=true"; }}
             onClick={() => setAvatarMgr(true)}
             title={t("tip_manage_avatars")}
-            alt="Temur"
+            alt="Amir"
             style={{ width: 42, height: 42, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(255,255,255,0.7)", cursor: "pointer", flexShrink: 0 }}
           />
         </div>
@@ -464,39 +464,41 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* ============ MOBILE ARIA — floating round button + chat panel ============ */}
-      {isMobile && (
-        <>
-          <AnimatePresence>
-            {ariaOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 30, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 30, scale: 0.96 }}
-                transition={{ duration: 0.22 }}
-                style={{ position: "fixed", left: 14, right: 14, bottom: 88, height: "68vh", zIndex: popupOpen ? 491 : 99, borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,0.35)" }}
-              >
-                <AriaPanel />
-              </motion.div>
-            )}
-          </AnimatePresence>
+      {/* ============ AMIR — floating button + chat panel on EVERY page/breakpoint.
+           Always above popups (high z-index) so it's reachable beside any modal. ============ */}
+      <>
+        <AnimatePresence>
+          {ariaOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 30, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 30, scale: 0.96 }}
+              transition={{ duration: 0.22 }}
+              style={isMobile
+                ? { position: "fixed", left: 14, right: 14, bottom: 88, height: "68vh", zIndex: 501, borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,0.35)" }
+                : { position: "fixed", right: 20, bottom: 92, width: "min(400px, 92vw)", height: "min(600px, 72vh)", zIndex: 501, borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,0.5)" }}
+            >
+              <AriaPanel />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          <motion.button
-            onClick={() => setAriaOpen(o => !o)}
-            whileTap={{ scale: 0.92 }}
-            style={{
-              position: "fixed", bottom: 20, right: 20, width: 62, height: 62, borderRadius: "50%",
-              background: "linear-gradient(165deg, #083A47 0%, #0c5563 50%, #4EB6A6 100%)",
-              border: "none", cursor: "pointer", zIndex: popupOpen ? 501 : 100,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 10px 28px rgba(8,58,71,0.45)",
-            }}
-            aria-label="Aria"
-          >
-            {ariaOpen ? <X size={24} color="#fff" /> : <MessageCircle size={24} color="#fff" />}
-          </motion.button>
-        </>
-      )}
+        <motion.button
+          onClick={() => setAriaOpen(o => !o)}
+          whileTap={{ scale: 0.92 }}
+          title="Amir"
+          style={{
+            position: "fixed", bottom: 20, right: 20, width: 62, height: 62, borderRadius: "50%",
+            background: "linear-gradient(165deg, #083A47 0%, #0c5563 50%, #4EB6A6 100%)",
+            border: "none", cursor: "pointer", zIndex: 502,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 10px 28px rgba(8,58,71,0.45)",
+          }}
+          aria-label="Amir"
+        >
+          {ariaOpen ? <X size={24} color="#fff" /> : <MessageCircle size={24} color="#fff" />}
+        </motion.button>
+      </>
 
       {/* Avatar manager (open from the user avatar) */}
       <AnimatePresence>
