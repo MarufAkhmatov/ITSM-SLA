@@ -365,9 +365,9 @@ export default function App() {
           flexDirection: "column",
           gap: GAP,
           minHeight: 0,
-          // Dashboard on desktop = one screen, no page scroll (panels fit the frame).
-          // IT services / Dynamics scroll (they carry more content). Mobile always scrolls.
-          overflowY: (isDesktop && view === "dashboard") ? "hidden" : "auto",
+          // Dashboard + IT services on desktop = one screen, no page scroll
+          // (panels fit the frame, tables scroll internally). Mobile always scrolls.
+          overflowY: (isDesktop && (view === "dashboard" || view === "usage")) ? "hidden" : "auto",
         }}
       >
         {/* ===== Shared page header: title + Service-desk dropdown (right) /
@@ -437,13 +437,19 @@ export default function App() {
           </div>
         ) : null}
 
-        {/* ============ RESOURCE UTILIZATION + chart ============ */}
+        {/* ============ RESOURCE UTILIZATION + chart + Amir (docked, desktop) ============ */}
         {(data?.widgets as any)?.resource_utilization?.staff?.length ? (
-          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1.5fr 1fr" : "1fr", gap: GAP, flex: isDesktop ? "1 1 0" : undefined, minHeight: isDesktop ? 0 : undefined }}>
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1.4fr 0.9fr 1fr" : "1fr", gap: GAP, flex: isDesktop ? "1 1 0" : undefined, minHeight: isDesktop ? 0 : undefined }}>
             <div style={{ ...card, height: isDesktop ? "100%" : 440, minHeight: 0, display: "flex", flexDirection: "column" }}>
               <ResourceUtilization onMaximize={() => setMaxPanel("resource")} />
             </div>
             <div style={{ height: isDesktop ? "100%" : 320, minHeight: 0 }}><ResourceChart /></div>
+            {/* Amir docked as the 3rd panel on desktop; mobile/tablet use the floating button */}
+            {isDesktop && !popupOpen && (
+              <div style={{ height: "100%", minHeight: 0, borderRadius: 14, overflow: "hidden", boxShadow: "var(--shadow)" }}>
+                <AriaPanel />
+              </div>
+            )}
           </div>
         ) : null}
         </>
@@ -461,7 +467,9 @@ export default function App() {
       </AnimatePresence>
 
       {/* ============ AMIR — floating button + chat panel on EVERY page/breakpoint.
-           Always above popups (high z-index) so it's reachable beside any modal. ============ */}
+           Always above popups (high z-index) so it's reachable beside any modal.
+           Hidden on the desktop dashboard (no popup), where Amir is docked inline. ============ */}
+      {!(isDesktop && view === "dashboard" && !popupOpen) && (
       <>
         <AnimatePresence>
           {ariaOpen && (
@@ -495,6 +503,7 @@ export default function App() {
           {ariaOpen ? <X size={24} color="#fff" /> : <MessageCircle size={24} color="#fff" />}
         </motion.button>
       </>
+      )}
 
       {/* Avatar manager (open from the user avatar) */}
       <AnimatePresence>

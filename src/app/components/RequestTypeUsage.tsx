@@ -38,7 +38,7 @@ export function RequestTypeUsage() {
   const mostPanel = (compact = false) => (
     <Panel title={t("usage_most")} icon={<TrendingUp size={16} color="#2d7a5f" />}
       info={t("usage_method_most")} onMaximize={compact ? () => setMaxSection("most") : undefined} t={t}>
-      <div className="pn-scroll" style={{ maxHeight: compact ? 300 : undefined, overflowY: "auto" }}>
+      <div className="pn-scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
         {most.map((r, i) => <UsageBar key={r.name} r={r} rank={i + 1} maxCount={maxCount} color="#2d7a5f" t={t} onClick={() => setSel(r)} />)}
       </div>
     </Panel>
@@ -46,7 +46,7 @@ export function RequestTypeUsage() {
   const leastPanel = (compact = false) => (
     <Panel title={t("usage_least")} icon={<TrendingDown size={16} color="#e07a7a" />}
       info={t("usage_method_least")} onMaximize={compact ? () => setMaxSection("least") : undefined} t={t}>
-      <div className="pn-scroll" style={{ maxHeight: compact ? 300 : undefined, overflowY: "auto" }}>
+      <div className="pn-scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
         {least.length
           ? least.map((r, i) => <UsageBar key={r.name} r={r} rank={i + 1} maxCount={maxCount} color="#e07a7a" t={t} onClick={() => setSel(r)} />)
           : <div style={{ color: "var(--muted)", fontSize: "0.78rem", padding: 10 }}>—</div>}
@@ -63,7 +63,7 @@ export function RequestTypeUsage() {
             style={{ border: "none", background: "transparent", outline: "none", fontSize: "0.74rem", color: "var(--text)", width: 150 }} />
         </div>
       }>
-      <div className="pn-scroll" style={{ maxHeight: compact ? 360 : undefined, overflowY: "auto" }}>
+      <div className="pn-scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.74rem" }}>
           <thead>
             <tr style={{ position: "sticky", top: 0, background: "var(--card)", textAlign: "left", color: "var(--muted)" }}>
@@ -103,30 +103,26 @@ export function RequestTypeUsage() {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))", gap: GAP }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: GAP, flex: 1, minHeight: 0 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px,1fr))", gap: GAP, flexShrink: 0 }}>
         <Kpi label={t("usage_total_types")} value={usage.total_types} />
         <Kpi label={t("usage_total_tickets")} value={usage.total_tickets} />
         <Kpi label={t("usage_top_share")} value={`${most[0]?.share_pct ?? 0}%`} sub={most[0]?.name} />
         <Kpi label={t("usage_single_use")} value={all.filter(r => r.count === 1).length} sub={t("usage_single_use_sub")} />
       </div>
 
-      {/* most used — table + chart side by side */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: GAP }}>
+      {/* Row 1: Most | its chart | Least | its chart — fills half the remaining height */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.15fr 0.85fr 1.15fr 0.85fr", gap: GAP, flex: "1 1 0", minHeight: 0 }}>
         {mostPanel(true)}
-        <div style={{ height: 340 }}><UsageChart rows={most} color="#2d7a5f" title={t("chart_most")} /></div>
-      </div>
-
-      {/* least used — table + chart side by side */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: GAP }}>
+        <div style={{ minHeight: 0 }}><UsageChart rows={most} color="#2d7a5f" title={t("chart_most")} /></div>
         {leastPanel(true)}
-        <div style={{ height: 340 }}><UsageChart rows={least} color="#e07a7a" title={t("chart_least")} /></div>
+        <div style={{ minHeight: 0 }}><UsageChart rows={least} color="#e07a7a" title={t("chart_least")} /></div>
       </div>
 
-      {/* all types — table + chart side by side */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: GAP }}>
+      {/* Row 2: All request types | its chart — fills the other half */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: GAP, flex: "1.15 1 0", minHeight: 0 }}>
         {allPanel(true)}
-        <div style={{ height: 420 }}><UsageChart rows={filtered} color="#0c5563" title={t("chart_all")} /></div>
+        <div style={{ minHeight: 0 }}><UsageChart rows={filtered} color="#0c5563" title={t("chart_all")} /></div>
       </div>
 
       {/* row detail */}
@@ -166,8 +162,8 @@ function Panel({ title, icon, right, info, onMaximize, t, children }: {
 }) {
   const [showInfo, setShowInfo] = useState(false);
   return (
-    <div style={{ background: "var(--card)", borderRadius: 16, boxShadow: "var(--shadow)", padding: 18, display: "flex", flexDirection: "column", gap: 10, position: "relative" }}>
-      <div className="flex items-center justify-between" style={{ gap: 8 }}>
+    <div style={{ background: "var(--card)", borderRadius: 16, boxShadow: "var(--shadow)", padding: 16, display: "flex", flexDirection: "column", gap: 8, position: "relative", height: "100%", minHeight: 0 }}>
+      <div className="flex items-center justify-between" style={{ gap: 8, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {icon}<span style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text)" }}>{title}</span>
           {info && (
@@ -188,9 +184,9 @@ function Panel({ title, icon, right, info, onMaximize, t, children }: {
         </div>
       </div>
       {info && showInfo && (
-        <div style={{ fontSize: "0.72rem", lineHeight: 1.5, color: "var(--soft)", background: "var(--surface2)", borderRadius: 8, padding: "8px 10px" }}>{info}</div>
+        <div style={{ fontSize: "0.72rem", lineHeight: 1.5, color: "var(--soft)", background: "var(--surface2)", borderRadius: 8, padding: "8px 10px", flexShrink: 0 }}>{info}</div>
       )}
-      {children}
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>{children}</div>
     </div>
   );
 }
