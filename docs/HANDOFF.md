@@ -24,8 +24,12 @@ request volume, **reaction & resolution SLA (Plan vs Actual)**, and resource
     down → `docker compose up -d` → opens http://localhost:8090).
   - Scheduled task **`SLANEST-Docker`** (AtLogOn) runs the launcher. The old Python-watchdog
     task `SLANEST` was **removed**. `serve-prod.ps1` (Python on :8090) still works as a manual fallback.
-- **Mobile (same Wi-Fi)**: server binds `0.0.0.0:8090`; firewall rule "SLANEST 8090".
-  Phone → `http://<LAN-IP>:8090` (LAN IP changes — `Get-NetIPAddress -AddressFamily IPv4 | ? PrefixOrigin -eq Dhcp`).
+- **Mobile (same Wi-Fi, no tunnel)**: Docker binds `0.0.0.0`/`[::]:8090`; firewall rule
+  "SLANEST 8090" (Inbound/Allow/Any). Phone (iPhone/Samsung) → `http://<LAN-IP>:8090`.
+  `open-app-docker.ps1` auto-detects the current DHCP LAN IP each launch, ensures the
+  firewall rule, writes **`mobile-access.html`** (phone URL + scannable QR, gitignored) and
+  opens it, and shows a tray balloon with the phone URL. LAN IP changes with DHCP — the
+  launcher always shows the current one. Verified `http://192.168.1.9:8090` → 200 from LAN.
 - Dev: `npm run dev` (Vite, proxies /api → :8077); `PN_PORT=8077 python backend/server.py`.
 - CI: `.github/workflows/ci.yml` (build SPA, py_compile, boot + /api/health).
 
