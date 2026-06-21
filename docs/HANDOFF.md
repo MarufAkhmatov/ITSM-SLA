@@ -9,7 +9,8 @@ request volume, **reaction & resolution SLA (Plan vs Actual)**, and resource
 (assignee) load across multiple Service Desks.
 
 - Repo: https://github.com/MarufAkhmatov/ITSM-SLA (branch `main`) — pushed.
-- Local: `C:\Users\ASUS\Downloads\ITSM`
+- Local: **`C:\Users\ASUS\Desktop\ITSM`** (moved here from Downloads — the desktop
+  icon, the `SLANEST-Docker` task, and the Docker `./storage` bind all point here now).
 - Login: **`Admin` / `Admin 2026`** (plaintext in `storage/auth.json`, read fresh each login).
 
 ## Stack & run
@@ -21,8 +22,8 @@ request volume, **reaction & resolution SLA (Plan vs Actual)**, and resource
     `docker-compose.slanest.yml` (volume `./storage`, `restart: unless-stopped`).
   - **Desktop icon `SLANEST.lnk`** → `open-app-docker.ps1` (starts Docker Desktop if
     down → `docker compose up -d` → opens http://localhost:8090).
-  - Scheduled task **`SLANEST-Docker`** (AtLogOn) runs the launcher. Old Python-watchdog
-    task **`SLANEST`** is **Disabled** (no :8090 contention). `serve-prod.ps1` still works as a fallback.
+  - Scheduled task **`SLANEST-Docker`** (AtLogOn) runs the launcher. The old Python-watchdog
+    task `SLANEST` was **removed**. `serve-prod.ps1` (Python on :8090) still works as a manual fallback.
 - **Mobile (same Wi-Fi)**: server binds `0.0.0.0:8090`; firewall rule "SLANEST 8090".
   Phone → `http://<LAN-IP>:8090` (LAN IP changes — `Get-NetIPAddress -AddressFamily IPv4 | ? PrefixOrigin -eq Dhcp`).
 - Dev: `npm run dev` (Vite, proxies /api → :8077); `PN_PORT=8077 python backend/server.py`.
@@ -103,7 +104,10 @@ one-page layouts → **Docker deploy** + desktop icon + autostart.
   `docker compose -f docker-compose.slanest.yml up -d --build`. Restart container to clear cache.
 - Preview MCP runs the OLD ProjectNest folder's dev server; verify ITSM by cross-origin nav to
   `http://localhost:8090` (flaky — screenshots time out; use `preview_eval` DOM checks).
-- Two scheduled tasks: `SLANEST` (Python watchdog, **Disabled**), `SLANEST-Docker` (active).
+- One scheduled task: `SLANEST-Docker` (active, AtLogOn) → `open-app-docker.ps1`.
+- If the project folder is ever moved: re-point the desktop icon + `SLANEST-Docker` task to the
+  new path and `docker compose down` then `up -d` from the new location (the `./storage` bind is
+  relative, so it follows the folder).
 
 ## NEXT / open
 - AP vs ITSM SLA targets may differ — confirm per-request-type SLA config if needed.
