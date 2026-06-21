@@ -43,3 +43,4 @@ storage/upload_history.json
 storage/.auth_secret
 storage/auth.json
 storage/status_audit.json
+mobile-access.html
