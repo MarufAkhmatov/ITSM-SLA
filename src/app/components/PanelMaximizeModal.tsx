@@ -18,12 +18,16 @@ export function PanelMaximizeModal({ children, onClose }: { children: React.Reac
       <motion.div
         initial={{ scale: 0.97, y: 14 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.97, y: 14 }}
         onClick={e => e.stopPropagation()}
-        style={{ background: "var(--card)", borderRadius: 18, boxShadow: "0 30px 90px rgba(0,0,0,0.4)", width: "min(1180px, 96vw)", height: "min(88vh, 940px)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}
+        style={{ background: "var(--card)", borderRadius: 18, boxShadow: "0 30px 90px rgba(0,0,0,0.4)", width: "min(1180px, 96vw)", height: "min(88vh, 940px)", display: "flex", flexDirection: "column", overflow: "hidden" }}
       >
-        <button onClick={onClose} title={t("panel_minimize")}
-          style={{ position: "absolute", top: 12, right: 12, zIndex: 5, width: 34, height: 34, borderRadius: 9, background: "var(--surface2)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Minimize2 size={16} color="#6b7a8d" />
-        </button>
+        {/* dedicated top bar — the minimize button lives here so it never
+            overlaps the panel's own search / controls */}
+        <div style={{ flexShrink: 0, display: "flex", justifyContent: "flex-end", alignItems: "center", padding: "8px 10px 0" }}>
+          <button onClick={onClose} title={t("panel_minimize")}
+            style={{ width: 34, height: 34, borderRadius: 9, background: "var(--surface2)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Minimize2 size={16} color="#6b7a8d" />
+          </button>
+        </div>
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
           {children}
         </div>

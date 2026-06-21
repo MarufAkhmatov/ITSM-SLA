@@ -49,9 +49,9 @@ export function SlaByRequestType({ onMaximize }: { onMaximize?: () => void } = {
 
   return (
     <div className="p-6 flex flex-col gap-3" style={{ height: "100%" }}>
-      <div className="flex items-center justify-between" style={{ gap: 8, flexWrap: "wrap" }}>
-        <span style={{ fontSize: "0.95rem", fontWeight: 600, color: "var(--text)" }}>{t("sla_crt_title")}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="flex items-center justify-between" style={{ gap: 8 }}>
+        <span style={{ fontSize: "0.95rem", fontWeight: 600, color: "var(--text)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t("sla_crt_title")}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {/* avg / max toggle for Fakt */}
           <div style={{ display: "flex", borderRadius: 999, background: "var(--surface2)", padding: 3 }}>
             {(["avg", "max"] as const).map(m => (

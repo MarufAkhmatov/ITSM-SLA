@@ -34,13 +34,13 @@ export function ResourceUtilization({ onMaximize }: { onMaximize?: () => void } 
 
   return (
     <div className="p-6 flex flex-col gap-3" style={{ height: "100%" }}>
-      <div className="flex items-center justify-between" style={{ gap: 8, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Users size={16} color="#0c5563" />
-          <span style={{ fontSize: "0.95rem", fontWeight: 600, color: "var(--text)" }}>{t("res_title")}</span>
-          <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>· {ru.total_staff} {t("sla_assignees")} · {ru.total_request_types} {t("up_projects")}</span>
+      <div className="flex items-center justify-between" style={{ gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
+          <Users size={16} color="#0c5563" style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: "0.95rem", fontWeight: 600, color: "var(--text)", flexShrink: 0 }}>{t("res_title")}</span>
+          <span style={{ fontSize: "0.72rem", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>· {ru.total_staff} {t("sla_assignees")} · {ru.total_request_types} {t("up_projects")}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <div style={{ display: "flex", borderRadius: 999, background: "var(--surface2)", padding: 3 }}>
             {(["staff", "byType"] as const).map(m => (
               <button key={m} onClick={() => setMode(m)} style={{ border: "none", cursor: "pointer", borderRadius: 999, padding: "4px 12px", fontSize: "0.72rem", fontWeight: 600, background: mode === m ? "var(--card)" : "transparent", color: mode === m ? "var(--text)" : "var(--muted)" }}>

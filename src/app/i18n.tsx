@@ -38,6 +38,7 @@ const en = {
   // dynamics
   dyn_title: "IT-service dynamics", dyn_subtitle: "Ticket-intake trend across all IT services — like a live calendar",
   dyn_needs_history: "Upload a History export (with dates) to unlock week / month / year trends.",
+  dyn_trend_vs: "trend vs prev.",
   total_appointments: "Total Appointments",
   active_patients: "Active Patients",
   critical_alerts: "Critical Alerts",
@@ -265,6 +266,7 @@ const ru: Dict = {
   usage_method_all: "Все IT услуги по числу заявок: статусы (закрыто / в работе / открыто), число исполнителей и SLA реакции / решения. Поиск и клик по любой строке.",
   dyn_title: "Динамика IT услуг", dyn_subtitle: "Тренд поступления заявок по всем IT услугам — как живой календарь",
   dyn_needs_history: "Загрузите экспорт «История» (с датами), чтобы открыть тренды неделя / месяц / год.",
+  dyn_trend_vs: "тренд к пред.",
   total_appointments: "Всего приёмов",
   active_patients: "Активные пациенты",
   critical_alerts: "Критические оповещения",
@@ -490,6 +492,7 @@ const uz: Dict = {
   usage_method_all: "Barcha IT xizmatlar zayavka soni bo'yicha: statuslar (yopilgan / jarayonda / ochiq), ijrochilar soni va reaksiya / yechim SLA. Qidiring va istalgan qatorni bosing.",
   dyn_title: "IT xizmatlar dinamikasi", dyn_subtitle: "Barcha IT xizmatlar bo'yicha zayavka qabul tendensiyasi — jonli kalendar kabi",
   dyn_needs_history: "Hafta / oy / yil tendensiyalarini ochish uchun History eksportini (sanalar bilan) yuklang.",
+  dyn_trend_vs: "oldingiga nisbatan",
   total_appointments: "Jami qabullar",
   active_patients: "Faol bemorlar",
   critical_alerts: "Muhim ogohlantirishlar",

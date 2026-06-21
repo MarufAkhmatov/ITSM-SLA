@@ -365,9 +365,9 @@ export default function App() {
           flexDirection: "column",
           gap: GAP,
           minHeight: 0,
-          // Dashboard + IT services on desktop = one screen, no page scroll
-          // (panels fit the frame, tables scroll internally). Mobile always scrolls.
-          overflowY: (isDesktop && (view === "dashboard" || view === "usage")) ? "hidden" : "auto",
+          // All pages on desktop = one screen, no page scroll (panels fit the
+          // frame, lists/tiles scroll internally). Mobile always scrolls.
+          overflowY: isDesktop ? "hidden" : "auto",
         }}
       >
         {/* ===== Shared page header: title + Service-desk dropdown (right) /
